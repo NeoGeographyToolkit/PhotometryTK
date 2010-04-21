@@ -11,3 +11,13 @@
 *Makefile
 *Makefile.in
 *.DS_Store
+
+# Photometry Toolkit
+src/asp/PhotometryTK/phodrg2plate
+src/asp/PhotometryTK/phoinitalbedo
+src/asp/PhotometryTK/phoinitfile
+src/asp/PhotometryTK/phoitalbedo
+src/asp/PhotometryTK/phoitdem
+src/asp/PhotometryTK/phoiterror
+src/asp/PhotometryTK/phoitreflect
+src/asp/PhotometryTK/phoittime

@@ -17,6 +17,15 @@
 *.pb.h
 *#
 
+/.vimrc.local
+/.project.root
+/vw.tags
+/tags
+/build
+/*.trace
+/.gcno.stamp
+/.gcda.stamp
+
 # Photometry Toolkit
 src/asp/PhotometryTK/phodrg2plate
 src/asp/PhotometryTK/phoinitalbedo

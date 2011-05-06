@@ -15,6 +15,7 @@
 *.moc.cc
 *.pb.cc
 *.pb.h
+*.pyc
 *#
 
 /.vimrc.local

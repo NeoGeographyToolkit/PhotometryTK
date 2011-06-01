@@ -1,0 +1,26 @@
+This open source version of the Photometry Toolkit (PhoTK) was
+developed by the Intelligent Robotics Group (IRG), in the Intelligent
+Systems Division at NASA Ames Research Center in Moffett Field, CA. It
+builds on over ten years of IRG experience developing surface
+reconstruction tools for terrestrial robotic field tests and planetary
+exploration.
+
+Credit and thanks go to the following developers for contributing time
+and energy to this effort.
+
+Ara Nefian (NASA/CMU) - Principal Investigator
+Zachary Moratto (NASA/SGT) - Lead Developer
+Terry Fong (CS) - Project Manager
+
+-------------------------------------
+Contributors
+-------------------------------------
+
+Mike Lundy (NASA/SGT)
+Dave Jackson (NASA/SGT)
+Trey Smith (NASA/CMU)
+
+CS  - Civil Servant
+CMU - Carnegie Mellon University
+SGT - Stinger Ghaffarian Technologies
+EAP - Educational Associates Program

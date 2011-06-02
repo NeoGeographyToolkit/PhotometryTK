@@ -1,0 +1,56 @@
+project(PHOTK)
+cmake_minimum_required(VERSION 2.8)
+
+# Add path for custom modules
+set(CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH}
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+  )
+
+set(PACKAGE_VERSION "0.1")
+set(PACKAGE_NAME photk)
+set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
+set(PACKAGE_BUGREPORT "z.m.moratto@nasa.gov")
+
+# Custom PhoTK options
+option(PHOTK_BUILD_TOOLS
+  "Build the PhotometryTK tools." ON)
+
+# Find Dependencies
+include(AddPHOTK)
+set(Boost_USE_STATIC_LIBS   OFF)
+set(Boost_USE_MULTITHREADED ON )
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -DBOOST_FILESYSTEM_VERSION=2)
+find_package(Boost 1.36.0
+  COMPONENTS
+  program_options
+  system
+  filesystem
+  thread
+  )
+find_package(VisionWorkbench REQUIRED
+  COMPONENTS
+  core
+  math
+  image
+  fileio
+  plate
+  cartography
+  )
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIRS})
+#photk_enable_testing() # Not working at the moment as I need to
+#figure out a way in which the user should have to install gtest
+#themselves.
+
+# Produce photk/config.h
+configure_file(
+  ${PHOTK_SOURCE_DIR}/src/photk/config.h.in
+  ${PHOTK_BINARY_DIR}/src/photk/config.h
+  )
+
+# Add common search locations
+include_directories(${PHOTK_SOURCE_DIR}/src)
+
+add_subdirectory(src/photk)
+add_subdirectory(src/tools)

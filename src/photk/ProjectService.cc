@@ -8,13 +8,13 @@
 #include <vw/Core/Log.h>
 #include <vw/Core/Exception.h>
 #include <vw/Plate/Exception.h>
-#include <asp/PhotometryTK/ProjectService.h>
-#include <asp/PhotometryTK/ProjectFileIO.h>
+#include <photk/ProjectService.h>
+#include <photk/ProjectFileIO.h>
 
 using namespace vw;
 using namespace vw::platefile;
 
-using namespace asp::pho;
+using namespace photk;
 
 #include <boost/regex.hpp>
 #include <boost/filesystem.hpp>
@@ -69,7 +69,7 @@ void ProjectServiceImpl::sync() {
 		     m_camera_metas.end() );
 }
 
-METHOD_IMPL(OpenRequest, ::asp::pho::ProjectOpenRequest, ::asp::pho::ProjectOpenReply) {
+METHOD_IMPL(OpenRequest, ::photk::ProjectOpenRequest, ::photk::ProjectOpenReply) {
   detail::RequireCall call(done);
 
   std::string request_ptk = request->name();
@@ -78,7 +78,7 @@ METHOD_IMPL(OpenRequest, ::asp::pho::ProjectOpenRequest, ::asp::pho::ProjectOpen
   *(response->mutable_meta()) = m_project_meta;
 }
 
-METHOD_IMPL(IterationUpdate, ::asp::pho::IterationUpdateRequest, ::asp::pho::IterationUpdateReply) {
+METHOD_IMPL(IterationUpdate, ::photk::IterationUpdateRequest, ::photk::IterationUpdateReply) {
   detail::RequireCall call(done);
 
   Mutex::Lock lock(m_mutex);
@@ -87,7 +87,7 @@ METHOD_IMPL(IterationUpdate, ::asp::pho::IterationUpdateRequest, ::asp::pho::Ite
   response->set_project_id( 0 );
 }
 
-METHOD_IMPL(CameraCreate, ::asp::pho::CameraCreateRequest, ::asp::pho::CameraCreateReply) {
+METHOD_IMPL(CameraCreate, ::photk::CameraCreateRequest, ::photk::CameraCreateReply) {
   detail::RequireCall call(done);
 
   Mutex::Lock lock(m_mutex);
@@ -101,7 +101,7 @@ METHOD_IMPL(CameraCreate, ::asp::pho::CameraCreateRequest, ::asp::pho::CameraCre
   m_camera_metas.back().set_base_transaction_id( m_project_meta.max_iterations()*(m_camera_metas.size()-1) );
 }
 
-METHOD_IMPL(CameraRead, ::asp::pho::CameraReadRequest, ::asp::pho::CameraReadReply) {
+METHOD_IMPL(CameraRead, ::photk::CameraReadRequest, ::photk::CameraReadReply) {
   detail::RequireCall call(done);
 
   // Set empty meta .. for the error checking
@@ -116,7 +116,7 @@ METHOD_IMPL(CameraRead, ::asp::pho::CameraReadRequest, ::asp::pho::CameraReadRep
     m_camera_metas[request->camera_id()];
 }
 
-METHOD_IMPL(CameraWrite, ::asp::pho::CameraWriteRequest, ::asp::pho::CameraWriteReply) {
+METHOD_IMPL(CameraWrite, ::photk::CameraWriteRequest, ::photk::CameraWriteReply) {
   detail::RequireCall call(done);
 
   Mutex::Lock lock(m_mutex);
@@ -129,7 +129,7 @@ METHOD_IMPL(CameraWrite, ::asp::pho::CameraWriteRequest, ::asp::pho::CameraWrite
   m_camera_metas[request->camera_id()] = request->meta();
 }
 
-METHOD_IMPL(PixvalAdd, ::asp::pho::PixvalAddRequest, ::asp::pho::PixvalAddReply) {
+METHOD_IMPL(PixvalAdd, ::photk::PixvalAddRequest, ::photk::PixvalAddReply) {
   detail::RequireCall call(done);
 
   Mutex::Lock lock(m_mutex);
@@ -139,7 +139,7 @@ METHOD_IMPL(PixvalAdd, ::asp::pho::PixvalAddRequest, ::asp::pho::PixvalAddReply)
   response->set_project_id( 0 );
 }
 
-METHOD_IMPL(PixvalGetAndReset, ::asp::pho::PixvalGetAndResetRequest, ::asp::pho::PixvalGetAndResetReply) {
+METHOD_IMPL(PixvalGetAndReset, ::photk::PixvalGetAndResetRequest, ::photk::PixvalGetAndResetReply) {
   detail::RequireCall call(done);
 
   Mutex::Lock lock(m_mutex);

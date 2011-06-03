@@ -5,13 +5,12 @@
 // __END_LICENSE__
 
 
-#ifndef __ASP_PHO_PARTITIONED_SUM_H__
-#define __ASP_PHO_PARTITIONED_SUM_H__
+#ifndef __PHOTK_PARTITIONED_SUM_H__
+#define __PHOTK_PARTITIONED_SUM_H__
 
 #include <vw/Plate/TileManipulation.h>
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   /**
    *       [a b c d e f g h i j]
@@ -105,6 +104,6 @@ namespace pho {
     }
   };
 
-}} // end namespace asp::pho
+} // end namespace photk
 
-#endif//__ASP_PHO_PARTITIONED_SUM_H__
+#endif//__PHOTK_PARTITIONED_SUM_H__

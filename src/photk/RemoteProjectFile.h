@@ -5,11 +5,11 @@
 // __END_LICENSE__
 
 
-#ifndef __ASP_PHOTOMETRYTK_REMOTE_PROJECT_FILE_H__
-#define __ASP_PHOTOMETRYTK_REMOTE_PROJECT_FILE_H__
+#ifndef __PHOTK_REMOTE_PROJECT_FILE_H__
+#define __PHOTK_REMOTE_PROJECT_FILE_H__
 
 #include <vw/Plate/Rpc.h>
-#include <asp/PhotometryTK/ProjectService.h>
+#include <photk/ProjectService.h>
 #include <boost/lexical_cast.hpp>
 #include <vw/Plate/HTTPUtils.h>
 
@@ -18,8 +18,7 @@ namespace platefile {
   class PlateFile;
 }}
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   class RemoteProjectFile {
     boost::shared_ptr<vw::platefile::RpcClient<ProjectService> > m_client;
@@ -48,6 +47,6 @@ namespace pho {
                          boost::shared_ptr<vw::platefile::PlateFile>& reflect ) const;
   };
 
-}} //end namespace asp::pho
+} //end namespace photk
 
-#endif//__ASP_PHOTOMETRYTK_REMOTE_PROJECT_FILE_H__
+#endif//__PHOTK_REMOTE_PROJECT_FILE_H__

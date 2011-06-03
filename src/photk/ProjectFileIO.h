@@ -10,15 +10,14 @@
 
 #include <vw/Core/FundamentalTypes.h>
 #include <vw/Core/Exception.h>
-#include <asp/PhotometryTK/ProjectFile.pb.h>
+#include <photk/ProjectFile.pb.h>
 #include <algorithm>
 #include <fstream>
 
 #include <boost/scoped_array.hpp>
 #include <boost/filesystem.hpp>
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   // Functors to help me
   namespace hidden {
@@ -117,6 +116,6 @@ namespace pho {
     }
   }
 
-}} // namespace asp::pho
+} // namespace photk
 
 #endif//__PROJECT_FILE_IO_H__

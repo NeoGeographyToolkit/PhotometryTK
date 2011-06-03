@@ -19,21 +19,21 @@
 #include <vw/Cartography.h>
 #include <vw/Plate/PlateFile.h>
 #include <vw/Plate/PlateManager.h>
-#include <asp/PhotometryTK/RemoteProjectFile.h>
-#include <asp/Core/Macros.h>
-#include <asp/Core/Common.h>
+#include <photk/RemoteProjectFile.h>
+#include <photk/Macros.h>
+#include <photk/Common.h>
 
 using namespace vw;
 using namespace vw::cartography;
 using namespace vw::platefile;
-using namespace asp::pho;
+using namespace photk;
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
 using namespace std;
 
-struct Options : asp::BaseOptions {
+struct Options : photk::BaseOptions {
   Options() : nodata_value(std::numeric_limits<double>::max()) {}
   // Input
   Url ptk_url;
@@ -108,7 +108,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   general_options.add_options()
     ("output-dir,o", po::value(&opt.output_dir)->default_value(""))
     ("nodata-value", po::value(&opt.nodata_value), "Explicitly set the value to treat as no data in the input file.");
-  general_options.add( asp::BaseOptionsDescription(opt) );
+  general_options.add( photk::BaseOptionsDescription(opt) );
 
   po::options_description positional("");
   positional.add_options()
@@ -125,8 +125,8 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   usage << "Usage: " << argv[0] << " <ptk-url> <drg-file> <cam-file>\n";
 
   po::variables_map vm =
-    asp::check_command_line( argc, argv, opt, general_options,
-                             positional, positional_desc, usage.str() );
+    photk::check_command_line( argc, argv, opt, general_options,
+                               positional, positional_desc, usage.str() );
 
   if ( opt.drg_file.empty() || opt.ptk_url == Url() )
     vw_throw( ArgumentErr() << "Missing input DRG or URL!\n"
@@ -139,7 +139,7 @@ int main( int argc, char *argv[] ) {
   try {
     handle_arguments( argc, argv, opt );
     do_creation( opt );
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

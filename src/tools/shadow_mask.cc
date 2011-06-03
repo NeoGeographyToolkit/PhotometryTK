@@ -8,8 +8,8 @@
 #include <vw/FileIO.h>
 #include <vw/Image.h>
 #include <vw/Cartography.h>
-#include <asp/Core/Macros.h>
-#include <asp/Core/Common.h>
+#include <photk/Macros.h>
+#include <photk/Common.h>
 #include <boost/foreach.hpp>
 
 using namespace vw;
@@ -17,7 +17,7 @@ namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
 
-struct Options : asp::BaseOptions {
+struct Options : photk::BaseOptions {
   Options() : nodata(std::numeric_limits<double>::max()), threshold(-1), percent(-1) {}
   // Input
   std::vector<std::string> input_files;
@@ -65,7 +65,7 @@ void shadow_mask_nodata( Options& opt,
   ImageViewRef<PixelT> result =
     apply_mask(intersect_mask(masked_input,create_mask(threshold(input_image,boost::numeric_cast<ChannelT>(session_threshold)))),boost::numeric_cast<ChannelT>(session_nodata));
 
-  asp::write_gdal_georeferenced_image( output, result, georef, opt,
+  photk::write_gdal_georeferenced_image( output, result, georef, opt,
                                        TerminalProgressCallback("photometrytk","Writing:") );
 }
 
@@ -132,13 +132,13 @@ void shadow_mask_alpha( Options& opt,
       clamp(channel_cast<double>(dist)/40.0,1.0);
     ImageViewRef<PixelT> result = per_pixel_filter( input_image, alpha_mod, MultiplyAlphaFunctor<PixelT>() );
 
-    asp::write_gdal_georeferenced_image( output, result, georef, opt,
+    photk::write_gdal_georeferenced_image( output, result, georef, opt,
                                          TerminalProgressCallback("photometrytk","Writing:"));
   } else {
     ImageViewRef<PixelT> result =
       per_pixel_filter( input_image, ThresholdAlphaFunctor<PixelT>(session_threshold) );
 
-    asp::write_gdal_georeferenced_image( output, result, georef, opt,
+    photk::write_gdal_georeferenced_image( output, result, georef, opt,
                                          TerminalProgressCallback("photometrytk","Writing:"));
   }
 }
@@ -151,7 +151,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
     ("threshold,t", po::value(&opt.threshold), "Intensity value used to detect shadows.")
     ("percent,p", po::value(&opt.percent), "Percent value of valid pixels used to detect shadows. This is an alternative to threshold option.")
     ("feather", "Feather pre-existing alpha around the newly masked shadows. Only for images with alpha already.");
-  general_options.add( asp::BaseOptionsDescription(opt) );
+  general_options.add( photk::BaseOptionsDescription(opt) );
 
   po::options_description positional("");
   positional.add_options()
@@ -162,7 +162,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
 
   std::string usage = "Usage: " + std::string(argv[0]) + " [options] <image_files>\n";
   po::variables_map vm =
-    asp::check_command_line( argc, argv, opt, general_options,
+    photk::check_command_line( argc, argv, opt, general_options,
                              positional, positional_desc, usage );
 
   opt.feather = vm.count("feather");
@@ -242,7 +242,7 @@ int main( int argc, char *argv[] ) {
         break;
       }
     }
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

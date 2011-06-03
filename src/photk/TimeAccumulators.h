@@ -5,11 +5,10 @@
 // __END_LICENSE__
 
 
-#ifndef __ASP_PHO_TIME_ACCUMULATORS_H__
-#define __ASP_PHO_TIME_ACCUMULATORS_H__
+#ifndef __PHOTK_TIME_ACCUMULATORS_H__
+#define __PHOTK_TIME_ACCUMULATORS_H__
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   // Re-estimate time exposure with reflectance
   class TimeDeltaAccumulator : public vw::ReturnFixedType<void> {
@@ -57,6 +56,6 @@ namespace pho {
     }
   };
 
-}}
+}
 
-#endif//__ASP_PHO_TIME_ACCUMULATORS_H__
+#endif//__PHOTK_TIME_ACCUMULATORS_H__

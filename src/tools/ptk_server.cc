@@ -10,8 +10,8 @@
 #include <vw/Plate/Rpc.h>
 #include <vw/Plate/HTTPUtils.h>
 #include <vw/Plate/IndexService.h>
-#include <asp/PhotometryTK/ProjectService.h>
-#include <asp/Core/Macros.h>
+#include <photk/ProjectService.h>
+#include <photk/Macros.h>
 #include <signal.h>
 
 #include <google/protobuf/descriptor.h>
@@ -22,7 +22,7 @@ namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 using namespace vw;
 using namespace vw::platefile;
-using namespace asp::pho;
+using namespace photk;
 
 // -- Signal Handler ---------------------
 
@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
     vw_out(InfoMessage) << "\nShutting down the ptk service safely.\n";
     server_1.impl()->sync();
 
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

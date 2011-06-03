@@ -18,13 +18,13 @@
 #include <vw/Image.h>
 #include <vw/Plate/PlateFile.h>
 #include <vw/Plate/TileManipulation.h>
-#include <asp/PhotometryTK/RemoteProjectFile.h>
-#include <asp/PhotometryTK/AlbedoAccumulators.h>
-#include <asp/Core/Macros.h>
-#include <asp/Core/Common.h>
+#include <photk/RemoteProjectFile.h>
+#include <photk/AlbedoAccumulators.h>
+#include <photk/Macros.h>
+#include <photk/Common.h>
 using namespace vw;
 using namespace vw::platefile;
-using namespace asp::pho;
+using namespace photk;
 
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
@@ -32,7 +32,7 @@ namespace po = boost::program_options;
 
 using namespace std;
 
-struct Options : asp::BaseOptions {
+struct Options : photk::BaseOptions {
   // Input
   Url ptk_url;
   int32 level;
@@ -207,7 +207,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
     ("job_id,j", po::value(&opt.job_id)->default_value(0), "")
     ("num_jobs,n", po::value(&opt.num_jobs)->default_value(1), "")
     ("2band", "Perform 2 Band mosaic of albedo. This should be used as a last step.");
-  general_options.add( asp::BaseOptionsDescription(opt) );
+  general_options.add( photk::BaseOptionsDescription(opt) );
 
   po::options_description positional("");
   positional.add_options()
@@ -220,7 +220,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   usage << "Usage: " << argv[0] << " <ptk-url>\n";
 
   po::variables_map vm =
-    asp::check_command_line( argc, argv, opt, general_options,
+    photk::check_command_line( argc, argv, opt, general_options,
                              positional, positional_desc, usage.str() );
 
   opt.perform_2band = vm.count("2band");
@@ -308,7 +308,7 @@ int main( int argc, char *argv[] ) {
     remote_ptk.add_pixvals(minmaxacc.minimum(),
                            minmaxacc.maximum());
     
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

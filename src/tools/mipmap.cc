@@ -10,7 +10,7 @@
 #include <vw/Image.h>
 #include <vw/Plate/PlateFile.h>
 #include <vw/Plate/PlateManager.h>
-#include <asp/Core/Macros.h>
+#include <photk/Macros.h>
 
 using namespace vw;
 using namespace vw::platefile;
@@ -143,7 +143,7 @@ int main( int argc, char *argv[] ) {
   try {
     handle_arguments( argc, argv, opt );
     perform_mipmap( opt );
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

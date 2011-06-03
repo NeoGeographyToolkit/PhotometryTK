@@ -18,18 +18,18 @@
 // If we're not calculating R, all ET get defined as 1.
 
 #include <vw/Image.h>
-#include <asp/PhotometryTK/ProjectFileIO.h>
-#include <asp/Core/Macros.h>
-#include <asp/Core/Common.h>
+#include <photk/ProjectFileIO.h>
+#include <photk/Macros.h>
+#include <photk/Common.h>
 using namespace vw;
-using namespace asp::pho;
+using namespace photk;
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
 using namespace std;
 
-struct Options : asp::BaseOptions {
+struct Options : photk::BaseOptions {
   // Input for project file
   int32 max_iterations;
   std::string reflectance_type, datum;
@@ -83,7 +83,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
      "Minimium required amount of improvement between iterations")
     ("abs_tol", po::value(&opt.abs_tol)->default_value(1e-2),
      "Error shutoff threshold.");
-  general_options.add( asp::BaseOptionsDescription(opt) );
+  general_options.add( photk::BaseOptionsDescription(opt) );
 
   po::options_description positional("");
   positional.add_options()
@@ -96,7 +96,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   usage << "Usage: " << argv[0] << " <projectname> <optional project settings> \n";
 
   po::variables_map vm =
-    asp::check_command_line( argc, argv, opt, general_options,
+    photk::check_command_line( argc, argv, opt, general_options,
                              positional, positional_desc, usage.str() );
 
   boost::to_lower( opt.output_mode );
@@ -115,7 +115,7 @@ int main( int argc, char *argv[] ) {
   try {
     handle_arguments( argc, argv, opt );
     create_ptk( opt );
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

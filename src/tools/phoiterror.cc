@@ -16,20 +16,20 @@
 // If there's no reflectance, don't multiply by it.
 
 #include <vw/Image.h>
-#include <asp/Core/Macros.h>
-#include <asp/Core/Common.h>
-#include <asp/PhotometryTK/RemoteProjectFile.h>
-#include <asp/PhotometryTK/ErrorAccumulators.h>
+#include <photk/Macros.h>
+#include <photk/Common.h>
+#include <photk/RemoteProjectFile.h>
+#include <photk/ErrorAccumulators.h>
 using namespace vw;
 using namespace vw::platefile;
-using namespace asp::pho;
+using namespace photk;
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
 using namespace std;
 
-struct Options : asp::BaseOptions {
+struct Options : photk::BaseOptions {
   Url ptk_url;
 
   // For spawning multiple jobs
@@ -105,7 +105,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
     ("level,l", po::value(&opt.level)->default_value(-1), "Default is to process lowest level.")
     ("job_id,j", po::value(&opt.job_id)->default_value(0), "")
     ("num_jobs,n", po::value(&opt.num_jobs)->default_value(1), "If num_jobs is 0, don't process anything, just output the error values for the full plate");
-  general_options.add( asp::BaseOptionsDescription(opt) );
+  general_options.add( photk::BaseOptionsDescription(opt) );
 
   po::options_description positional("");
   positional.add_options()
@@ -118,7 +118,7 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   usage << "Usage: " << argv[0] << " <ptk-url>\n";
 
   po::variables_map vm =
-    asp::check_command_line( argc, argv, opt, general_options,
+    photk::check_command_line( argc, argv, opt, general_options,
                              positional, positional_desc, usage.str() );
 
   if ( opt.ptk_url == Url() )
@@ -132,7 +132,7 @@ int main( int argc, char *argv[] ) {
   try {
     handle_arguments( argc, argv, opt );
     update_error( opt );
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

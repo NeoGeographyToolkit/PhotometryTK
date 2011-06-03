@@ -5,15 +5,14 @@
 // __END_LICENSE__
 
 
-#ifndef __ASP_PHO_ALBEDO_ACCUMULATORS_H__
-#define __ASP_PHO_ALBEDO_ACCUMULATORS_H__
+#ifndef __PHOTK_ALBEDO_ACCUMULATORS_H__
+#define __PHOTK_ALBEDO_ACCUMULATORS_H__
 
-#include <asp/PhotometryTK/ImageAccumulators.h>
+#include <photk/ImageAccumulators.h>
 #include <vw/Image/ImageView.h>
 #include <vw/Image/Algorithms.h>
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   template <class PixelT>
   class AlbedoInitAccumulator : public ImageAccumulatorBase<AlbedoInitAccumulator<PixelT> > {
@@ -331,6 +330,6 @@ namespace pho {
     }
   };
 
-}} // end namespace asp::pho
+} // end namespace photk
 
-#endif//__ASP_PHO_ALBEDO_ACCUMULATORS_H__
+#endif//__PHOTK_ALBEDO_ACCUMULATORS_H__

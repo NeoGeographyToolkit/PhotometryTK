@@ -5,7 +5,7 @@
 // __END_LICENSE__
 
 
-package asp.pho;
+package photk;
 
 message ProjectMeta {
     optional string name = 1; // Optional Description

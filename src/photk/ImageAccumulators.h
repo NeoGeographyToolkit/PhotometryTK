@@ -5,11 +5,10 @@
 // __END_LICENSE__
 
 
-#ifndef __ASP_PHO_IMAGE_ACCUMULATORS_H__
-#define __ASP_PHO_IMAGE_ACCUMULATORS_H__
+#ifndef __PHOTK_IMAGE_ACCUMULATORS_H__
+#define __PHOTK_IMAGE_ACCUMULATORS_H__
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   // This base class is used only to enforce coding standards
   template <class ImplT>
@@ -29,6 +28,6 @@ namespace pho {
     // process.
   };
 
-}} // end namespace asp::pho
+} // end namespace photk
 
 #endif//__VW_IMAGE_ACCUMULATORS_H_

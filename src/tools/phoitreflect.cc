@@ -14,7 +14,7 @@
 // right away.
 
 #include <vw/Image.h>
-#include <asp/Core/Macros.h>
+#include <photk/Macros.h>
 using namespace vw;
 
 #include <boost/program_options.hpp>
@@ -56,7 +56,7 @@ int main( int argc, char *argv[] ) {
   Options opt;
   try {
     handle_arguments( argc, argv, opt );
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

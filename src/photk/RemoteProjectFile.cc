@@ -5,17 +5,16 @@
 // __END_LICENSE__
 
 
-#include <asp/PhotometryTK/RemoteProjectFile.h>
+#include <photk/RemoteProjectFile.h>
 #include <vw/Core/Exception.h>
 #include <vw/Image/PixelTypeInfo.h>
 #include <vw/Plate/HTTPUtils.h>
 #include <vw/Plate/PlateFile.h>
 using namespace vw;
-using namespace asp::pho;
+using namespace photk;
 using namespace vw::platefile;
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   // Constructor
   RemoteProjectFile::RemoteProjectFile( Url const& url ) {
@@ -211,4 +210,4 @@ namespace pho {
     }
   }
 
-}} //end namespace asp::pho
+} //end namespace photk

@@ -14,11 +14,11 @@
 
 #include <vw/Image.h>
 #include <vw/Plate/PlateFile.h>
-#include <asp/PhotometryTK/RemoteProjectFile.h>
-#include <asp/Core/Macros.h>
+#include <photk/RemoteProjectFile.h>
+#include <photk/Macros.h>
 using namespace vw;
 using namespace vw::platefile;
-using namespace asp::pho;
+using namespace photk;
 
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
@@ -102,7 +102,7 @@ int main( int argc, char *argv[] ) {
   try {
     handle_arguments( argc, argv, opt );
     do_et_solve( opt );
-  } ASP_STANDARD_CATCHES;
+  } PHOTK_STANDARD_CATCHES;
 
   return 0;
 }

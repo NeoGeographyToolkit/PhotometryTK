@@ -5,20 +5,19 @@
 // __END_LICENSE__
 
 
-#ifndef __ASP_PHO_ERROR_ACCUMULATORS_H__
-#define __ASP_PHO_ERROR_ACCUMULATORS_H__
+#ifndef __PHOTK_ERROR_ACCUMULATORS_H__
+#define __PHOTK_ERROR_ACCUMULATORS_H__
 
 #include <vw/Core/CompoundTypes.h>
 #include <vw/Image.h>
 #include <vw/Plate/PlateFile.h>
-#include <asp/PhotometryTK/RemoteProjectFile.h>
-#include <asp/PhotometryTK/RecursiveBBoxAccumulator.h>
-#include <asp/Core/Macros.h>
+#include <photk/RemoteProjectFile.h>
+#include <photk/RecursiveBBoxAccumulator.h>
+#include <photk/Macros.h>
 
 #include <boost/foreach.hpp>
 
-namespace asp {
-namespace pho {
+namespace photk {
 
   // Calculate error
   class ErrorAccumulator : public vw::ReturnFixedType<void> {
@@ -126,6 +125,6 @@ namespace pho {
     }
   };
 
-}} // end namespace asp::pho
+} // end namespace photk
 
-#endif//__ASP_PHO_ERROR_ACCUMULATORS_H__
+#endif//__PHOTK_ERROR_ACCUMULATORS_H__

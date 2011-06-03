@@ -8,11 +8,28 @@ PROTOBUF_GENERATE_CPP(
   ProjectFile.proto
   )
 
-add_library(PhotometryTK
+add_library(PhotometryTK SHARED
   ProjectService.cc
   RemoteProjectFile.cc
   ${PROTO_SRCS}
   )
+
+target_link_libraries(PhotometryTK
+  ${PROTOBUF_LIBRARIES}
+  ${Boost_SYSTEM_LIBRARY}
+  ${Boost_FILESYSTEM_LIBRARY}
+  ${VISIONWORKBENCH_CORE_LIBRARY}
+  ${VISIONWORKBENCH_MATH_LIBRARY}
+  ${VISIONWORKBENCH_IMAGE_LIBRARY}
+  ${VISIONWORKBENCH_FILEIO_LIBRARY}
+  ${VISIONWORKBENCH_PLATE_LIBRARY}
+  )
+
+if(ENABLE_RPATHS)
+  set_target_properties(PhotometryTK PROPERTIES
+    INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib
+    INSTALL_RPATH_USE_LINK_RPATH TRUE)
+endif(ENABLE_RPATHS)
 
 install(FILES
   ${PROTO_HDRS}
@@ -27,4 +44,9 @@ install(FILES
   RemoteProjectFile.h
   TimeAccumulators.h
   DESTINATION include/photk
+  )
+
+install(TARGETS
+  PhotometryTK
+  DESTINATION lib
   )

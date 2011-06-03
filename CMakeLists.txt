@@ -15,6 +15,27 @@ set(PACKAGE_BUGREPORT "z.m.moratto@nasa.gov")
 # Custom PhoTK options
 option(PHOTK_BUILD_TOOLS
   "Build the PhotometryTK tools." ON)
+option(BUILD_SHARED_LIBS
+  "Produce shared libraries." TRUE)
+option(ENABLE_RPATHS
+  "Use RPaths in executables to find shared libraries." FALSE)
+if (ENABLE_RPATHS)
+  set(CMAKE_SKIP_RPATH                  FALSE CACHE BOOL "")
+  set(CMAKE_SKIP_BUILD_RPATH            FALSE CACHE BOOL "")
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE CACHE BOOL "")
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE  CACHE BOOL "")
+  if(APPLE)
+    set(CMAKE_INSTALL_NAME_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+  endif(APPLE)
+  mark_as_advanced(
+    CMAKE_SKIP_RPATH
+    CMAKE_SKIP_BUILD_RPATH
+    CMAKE_BUILD_WITH_INSTALL_RPATH
+    CMAKE_INSTALL_RPATH
+    CMAKE_INSTALL_RPATH_USE_LINK_PATH
+    )
+endif(ENABLE_RPATHS)
 
 # Find Dependencies
 include(AddPHOTK)

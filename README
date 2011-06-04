@@ -21,7 +21,16 @@ soon follow. Check this website for the latest updates.
 
 B. Photometry Toolkit
 
-Todo.
+The NASA Photometry Toolkit (PhoTK) is a suite of tools designed for
+processing planetary imagery into seamless mosaics. It achieves these
+goals through solving exposure times and correcting for individual
+reflectance. This allows PhoTK to extract the true albedo of a
+planet's surface.
+
+This software is meant to be used as a post process of NASA Ames
+Stereo Pipeline or USGS's Integrated Software for Imagers and
+Spectrometers (ISIS). ISIS is only supported through the libraries of
+GDAL at this current time. Be sure to use GDAL 1.8+.
 
 ************************************************************************
 2. LICENSE (see COPYING for the full text)
@@ -66,7 +75,9 @@ Unavailable at this time.
 ************************************************************************
 4. CONTACTS & CREDITS
 
-Unavailable at this time.
+Please mail all bug reports or general questions to:
+
+  z.m.moratto@nasa.gov
 
 B. Credits
 

@@ -6,13 +6,12 @@
 
 
 #include <gtest/gtest.h>
-#include <asp/PhotometryTK/ProjectFileIO.h>
+#include <photk/ProjectFileIO.h>
 #include <list>
 #include <boost/foreach.hpp>
 
 using namespace vw;
-using namespace asp;
-using namespace asp::pho;
+using namespace photk;
 
 namespace fs = boost::filesystem;
 

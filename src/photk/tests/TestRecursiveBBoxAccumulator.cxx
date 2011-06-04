@@ -6,13 +6,11 @@
 
 
 #include <gtest/gtest.h>
-#include <asp/PhotometryTK/RecursiveBBoxAccumulator.h>
+#include <photk/RecursiveBBoxAccumulator.h>
 
 using namespace vw;
 using namespace vw::platefile;
-
-using namespace asp::pho;
-
+using namespace photk;
 using namespace std;
 
 template<typename ScalarT, typename ElementT>

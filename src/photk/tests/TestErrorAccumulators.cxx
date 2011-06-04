@@ -7,12 +7,11 @@
 
 #include <gtest/gtest.h>
 #include <vw/Image.h>
-#include <asp/PhotometryTK/ErrorAccumulators.h>
+#include <photk/ErrorAccumulators.h>
 #include <test/Helpers.h>
 
 using namespace vw;
-using namespace asp;
-using namespace asp::pho;
+using namespace photk;
 
 template <class ChannelT>
 class ErrorAccumulatorTest : public ::testing::Test {

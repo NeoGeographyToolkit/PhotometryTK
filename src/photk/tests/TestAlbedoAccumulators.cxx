@@ -7,12 +7,11 @@
 
 #include <gtest/gtest.h>
 #include <vw/Image.h>
-#include <asp/PhotometryTK/AlbedoAccumulators.h>
+#include <photk/AlbedoAccumulators.h>
 #include <test/Helpers.h>
 
 using namespace vw;
-using namespace asp;
-using namespace asp::pho;
+using namespace photk;
 
 template <class ChannelT>
 class AlbedoAccumulatorTest : public ::testing::Test {

@@ -8,14 +8,13 @@
 #include <gtest/gtest.h>
 #include <vw/Image.h>
 #include <vw/FileIO.h>
-#include <asp/PhotometryTK/ErrorAccumulators.h>
-#include <asp/PhotometryTK/TimeAccumulators.h>
-#include <asp/PhotometryTK/AlbedoAccumulators.h>
+#include <photk/ErrorAccumulators.h>
+#include <photk/TimeAccumulators.h>
+#include <photk/AlbedoAccumulators.h>
 #include <test/Helpers.h>
 
 using namespace vw;
-using namespace asp;
-using namespace asp::pho;
+using namespace photk;
 
 // These test is a repeat of previous tests but uses actually data and
 // will run the data into a position where overflow is possible. This
@@ -36,7 +35,7 @@ protected:
     for ( int i = 0; i < 4; i++ ) {
       std::ostringstream ostr;
       ostr << "input_image" << i+1 << ".tif";
-      read_image( drgs[i], ostr.str() );
+      read_image( drgs[i], test::SrcName(ostr.str()) );
       exposure[i] = 1.0;
     }
 

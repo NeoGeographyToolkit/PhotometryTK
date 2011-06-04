@@ -8,7 +8,7 @@ PROTOBUF_GENERATE_CPP(
   ProjectFile.proto
   )
 
-add_library(PhotometryTK SHARED
+add_library(PhotometryTK
   ProjectService.cc
   RemoteProjectFile.cc
   ${PROTO_SRCS}
@@ -24,12 +24,6 @@ target_link_libraries(PhotometryTK
   ${VISIONWORKBENCH_FILEIO_LIBRARY}
   ${VISIONWORKBENCH_PLATE_LIBRARY}
   )
-
-if(ENABLE_RPATHS)
-  set_target_properties(PhotometryTK PROPERTIES
-    INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib
-    INSTALL_RPATH_USE_LINK_RPATH TRUE)
-endif(ENABLE_RPATHS)
 
 install(FILES
   ${PROTO_HDRS}

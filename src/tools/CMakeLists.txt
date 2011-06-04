@@ -1,9 +1,6 @@
 include_directories(${VISIONWORKBENCH_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
 
-# Getting generated files
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
-
 # Reusable Vision Workbench Patterns
 set(VISIONWORKBENCH_BASE_LIBRARIES
   ${VISIONWORKBENCH_CORE_LIBRARY}

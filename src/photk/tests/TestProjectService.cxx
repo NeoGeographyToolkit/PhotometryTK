@@ -6,12 +6,11 @@
 
 
 #include <gtest/gtest.h>
-#include <asp/PhotometryTK/ProjectService.h>
+#include <photk/ProjectService.h>
 #include <list>
 
 using namespace vw;
-using namespace asp;
-using namespace asp::pho;
+using namespace photk;
 
 TEST(ProjectService, Instantiation) {
 

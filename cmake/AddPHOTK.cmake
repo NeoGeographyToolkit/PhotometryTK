@@ -40,10 +40,7 @@ endfunction(photk_enable_testing)
 function(photk_add_test source_file)
   string(REGEX REPLACE "^([A-Za-z0-9_]*)\\.([A-Za-z0-9]*)" "\\1" executable "${source_file}")
 
-  #add_executable(${executable} EXCLUDE_FROM_ALL ${source_file} )
-  add_custom_target(${executable} ${executable}
-    SOURCES ${source_file}
-    )
+  add_executable(${executable} EXCLUDE_FROM_ALL ${source_file} )
   target_link_libraries( ${executable} gtest )
   foreach(lib ${PHOTK_USED_LIBS})
     target_link_libraries( ${executable} ${lib} )
@@ -53,10 +50,10 @@ function(photk_add_test source_file)
     PROPERTIES
     COMPILE_FLAGS "-DTEST_SRCDIR=\\\"${CMAKE_CURRENT_SOURCE_DIR}\\\" -DTEST_DSTDIR=\\\"${CMAKE_CURRENT_BINARY_DIR}\\\""
     )
-  add_dependencies(check ${executable})
-  set_property(TARGET check APPEND
-    PROPERTY COMMAND ${executable}
+  add_custom_target(${executable}Exec ${CMAKE_CURRENT_BINARY_DIR}/${executable}
+    DEPENDS ${executable}
     )
+  add_dependencies(check ${executable}Exec)
 
   # file(READ "${source_file}" contents)
   # string(REGEX MATCHALL "TEST_?F?\\(([A-Za-z_0-9 ,]+)\\)" found_tests ${contents})

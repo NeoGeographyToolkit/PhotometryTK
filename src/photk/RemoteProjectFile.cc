@@ -181,32 +181,38 @@ namespace photk {
     if ( scheme == "pf" || scheme == "amqp" ) {
       base_url = m_url.string()+"_index/";
     } else if ( scheme == "zmq" || scheme == "zmq+ipc" ||
-		scheme == "zmq+tcp" || scheme == "zmq+inproc" ) {
+                scheme == "zmq+tcp" || scheme == "zmq+inproc" ) {
       base_url = m_url.scheme() + "://"+m_url.hostname()+":"+
-	boost::lexical_cast<std::string>(m_url.port()+1)+"/";
+        boost::lexical_cast<std::string>(m_url.port()+1)+"/";
     } else {
       vw_throw( ArgumentErr() << "ptk_server: Unknown URL scheme \"" << scheme
-		<< "\".\n" );
+                << "\".\n" );
     }
 
     std::string postfix("?cache_size=1");
-    typedef boost::shared_ptr<PlateFile> PlatePtr;
     vw_out(DebugMessage,"ptk") << "Loading platefiles with base url:\n\t"
                                << base_url << "\n";
 
-    drg =
-      PlatePtr( new PlateFile(base_url+"DRG.plate"+postfix,
-                              project_info.plate_manager(), "", 256, "tif",
-                              VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
-    albedo =
-      PlatePtr( new PlateFile(base_url+"Albedo.plate"+postfix,
-                              project_info.plate_manager(), "", 256, "tif",
-                              VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
-    if ( project_info.reflectance() != ProjectMeta::NONE ) {
-      reflect =
-        PlatePtr( new PlateFile(base_url+"Reflectance.plate"+postfix,
+    if ( project_info.drg_channel_type() == "float32" ) {
+      drg.reset( new PlateFile(base_url+"DRG.plate"+postfix,
+                               project_info.plate_manager(), "", 256, "tif",
+                               VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
+    } else if ( project_info.drg_channel_type() == "int16" ) {
+      drg.reset( new PlateFile(base_url+"DRG.plate"+postfix,
+                               project_info.plate_manager(), "", 256, "tif",
+                               VW_PIXEL_GRAYA, VW_CHANNEL_INT16) );
+    } else {
+      drg.reset( new PlateFile(base_url+"DRG.plate"+postfix,
+                               project_info.plate_manager(), "", 256, "tif",
+                               VW_PIXEL_GRAYA, VW_CHANNEL_UINT8) );
+    }
+    albedo.reset( new PlateFile(base_url+"Albedo.plate"+postfix,
                                 project_info.plate_manager(), "", 256, "tif",
                                 VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
+    if ( project_info.reflectance() != ProjectMeta::NONE ) {
+      reflect.reset( new PlateFile(base_url+"Reflectance.plate"+postfix,
+                                   project_info.plate_manager(), "", 256, "tif",
+                                   VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
     }
   }
 

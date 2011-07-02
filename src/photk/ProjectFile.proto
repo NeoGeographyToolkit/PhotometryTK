@@ -32,6 +32,7 @@ message ProjectMeta {
     required double max_pixval = 11 [default=0]; // Update this so we can normalize at the end
     repeated double min_pixval_vec = 13;
     repeated double max_pixval_vec = 14;
+    optional string drg_channel_type = 15 [default="float32"];
 }
 
 message CameraMeta {

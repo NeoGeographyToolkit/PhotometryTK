@@ -76,20 +76,43 @@ void do_creation( Options& opt ) {
       opt.nodata_value = rsrc->nodata_read();
   }
 
-  {
-    PlateManager<PixelGrayA<float32> >* pm =
-      PlateManager<PixelGrayA<float32> >::make(prj_meta.plate_manager(),drg);
+  // There should probably be a better way of doing this. Templating this method didn't really seem to save any lines (just makes the binary bigger)
+  if ( prj_meta.drg_channel_type() == "float32" ) {
+    typedef PixelGrayA<float32> PixelT;
+    boost::scoped_ptr<PlateManager<PixelT> > pm( PlateManager<PixelT>::make(prj_meta.plate_manager(),drg) );
     // Insert DRG
-    if ( opt.nodata_value != std::numeric_limits<double>::max() ) {
+    if ( opt.nodata_value != std::numeric_limits<double>::max() )
       pm->insert( mask_to_alpha(create_mask(DiskImageView<PixelGray<float32> >(opt.drg_file),opt.nodata_value)),
                   opt.drg_file, cam_id+1, georef, false, false,
                   TerminalProgressCallback( "photometrytk", "\tProcessing" ) );
-    } else {
-      pm->insert( DiskImageView<PixelGrayA<float32> >( opt.drg_file ),
+    else
+      pm->insert( DiskImageView<PixelT >( opt.drg_file ),
                   opt.drg_file, cam_id+1, georef, false, false,
                   TerminalProgressCallback( "photometrytk", "\tProcessing" ) );
-    }
-    delete pm;
+  } else if ( prj_meta.drg_channel_type() == "int16" ) {
+    typedef PixelGrayA<int16> PixelT;
+    boost::scoped_ptr<PlateManager<PixelT> > pm( PlateManager<PixelT>::make(prj_meta.plate_manager(),drg) );
+    // Insert DRG
+    if ( opt.nodata_value != std::numeric_limits<double>::max() )
+      pm->insert( mask_to_alpha(create_mask(DiskImageView<PixelGray<int16> >(opt.drg_file),opt.nodata_value)),
+                  opt.drg_file, cam_id+1, georef, false, false,
+                  TerminalProgressCallback( "photometrytk", "\tProcessing" ) );
+    else
+      pm->insert( DiskImageView<PixelT >( opt.drg_file ),
+                  opt.drg_file, cam_id+1, georef, false, false,
+                  TerminalProgressCallback( "photometrytk", "\tProcessing" ) );
+  } else {
+    typedef PixelGrayA<uint8> PixelT;
+    boost::scoped_ptr<PlateManager<PixelT> > pm( PlateManager<PixelT>::make(prj_meta.plate_manager(),drg) );
+    // Insert DRG
+    if ( opt.nodata_value != std::numeric_limits<double>::max() )
+      pm->insert( mask_to_alpha(create_mask(DiskImageView<PixelGray<uint8> >(opt.drg_file),opt.nodata_value)),
+                  opt.drg_file, cam_id+1, georef, false, false,
+                  TerminalProgressCallback( "photometrytk", "\tProcessing" ) );
+    else
+      pm->insert( DiskImageView<PixelT >( opt.drg_file ),
+                  opt.drg_file, cam_id+1, georef, false, false,
+                  TerminalProgressCallback( "photometrytk", "\tProcessing" ) );
   }
 
   /*

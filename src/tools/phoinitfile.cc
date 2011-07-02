@@ -32,7 +32,7 @@ using namespace std;
 struct Options : photk::BaseOptions {
   // Input for project file
   int32 max_iterations;
-  std::string reflectance_type, datum;
+  std::string reflectance_type, datum, channel_type;
   double rel_tol, abs_tol;
 
   // Output
@@ -64,6 +64,7 @@ void create_ptk( Options const& opt ) {
 
   proj_meta.set_plate_manager( opt.output_mode );
   proj_meta.set_datum_name( opt.datum );
+  proj_meta.set_drg_channel_type( opt.channel_type );
 
   std::list<CameraMeta> emptycams;
   write_pho_project( opt.output_prefix, proj_meta,
@@ -76,6 +77,8 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
     ("max_iterations", po::value(&opt.max_iterations)->default_value(100), "")
     ("mode,m", po::value(&opt.output_mode)->default_value("equi"),
      "Output mode [toast, equi, polar]")
+    ("channel_type", po::value(&opt.channel_type)->default_value("FLOAT32"),
+     "DRG channel type [FLOAT32, INT16, UINT8]")
     ("datum,d", po::value(&opt.datum)->default_value("D_MOON"),
      "Datum options are [WGS84,WGS72,D_MOON,D_MARS]")
     ("reflectance_type", po::value(&opt.reflectance_type)->default_value("none"), "Reflectance options are [none, lambertian, gaskall, mcewen]")
@@ -107,6 +110,12 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   if ( opt.output_prefix.empty() )
     vw_throw( ArgumentErr() << "Missing output prefix!\n"
               << usage.str() << general_options );
+
+  boost::to_lower( opt.channel_type );
+  if ( !( opt.channel_type == "float32" || opt.channel_type == "int16" ||
+          opt.channel_type == "uint8" ) )
+    vw_throw( ArgumentErr() << "Unknown mode: \"" << opt.channel_type
+              << "\".\n\n" << usage.str() << general_options );
 }
 
 int main( int argc, char *argv[] ) {

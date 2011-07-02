@@ -1,7 +1,10 @@
 macro(add_photk_executable name)
   add_executable(${name} ${ARGN})
   foreach(lib ${PHOTK_USED_LIBS})
-    target_link_libraries( ${name} ${lib} )
+    if( NOT ${lib} STREQUAL "optimized" AND
+        NOT ${lib} STREQUAL "debug" )
+      target_link_libraries( ${name} ${lib} )
+    endif()
   endforeach(lib)
 endmacro(add_photk_executable name)
 

@@ -72,7 +72,7 @@ void normalize_plate( Options const& opt,
   int32 max_tid = ptk_meta.max_iterations() * ptk_meta.num_cameras();
   std::ostringstream ostr;
   ostr << "Albedo Normalization [id=" << opt.job_id << "]";
-  int32 transaction_id = albedo_plate->transaction_request(ostr.str(),-1);
+  Transaction transaction_id = albedo_plate->transaction_begin(ostr.str(),-1);
   TerminalProgressCallback tpc("photometrytk", "AlbedoNorm");
   double tpc_inc = 1.0/float(workunits.size());
   albedo_plate->write_request();
@@ -89,37 +89,33 @@ void normalize_plate( Options const& opt,
     tpc.report_incremental_progress( tpc_inc );
     
     std::list<TileHeader> test_lower_res_tiles;
-    test_lower_res_tiles = drg_plate->search_by_location(workunit.min().x()/8,
-                                                         workunit.min().y()/8,
-                                                         opt.level - 3, 0, 
-                                                         max_tid, true );
-    if ( test_lower_res_tiles.empty() ) {
+    test_lower_res_tiles =
+      drg_plate->search_by_location(workunit.min().x()/8,
+                                    workunit.min().y()/8,
+                                    opt.level - 3, TransactionRange(0, max_tid) );
+    if ( test_lower_res_tiles.empty() )
       continue;
-    }
 
     for( int32 ix = workunit.min().x(); ix < workunit.max().x(); ix++ ) {
       for( int32 iy = workunit.min().y(); iy < workunit.max().y(); iy++ ) {
         std::list<TileHeader> tiles =
           drg_plate->search_by_location( ix, iy, opt.level,
-                                         0, max_tid, true );
-        
+                                         TransactionRange(0, max_tid) );
         if ( tiles.empty() )
           continue;
-        
         albedo_plate->read( image_temp, ix, iy,
                             opt.level, -1, true );
 
         image_temp = normalize( image_temp, minPixval, maxPixval, 0, 1 );
 
-        albedo_plate->write_update(image_temp, ix, iy,
-                                   opt.level, transaction_id);
+        albedo_plate->write_update(image_temp, ix, iy, opt.level);
       } // end for iy
     } // end for ix
   } // end foreach
 
   tpc.report_finished();
   albedo_plate->write_complete();
-  albedo_plate->transaction_complete(transaction_id,true);
+  albedo_plate->transaction_end(true);
 }
 
 int main( int argc, char *argv[] ) {

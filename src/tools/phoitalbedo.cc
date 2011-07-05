@@ -57,8 +57,8 @@ void initial_albedo( Options const& opt,
   uint32 tile_size = albedo_plate->default_tile_size();
   std::ostringstream ostr;
   ostr << "Albedo Initialize [id=" << opt.job_id << "]";
-  int32 transaction_id =
-    albedo_plate->transaction_request(ostr.str(),-1);
+  Transaction transaction_id =
+    albedo_plate->transaction_begin(ostr.str(),-1);
   TerminalProgressCallback tpc("photometrytk", "Initial");
   double tpc_inc = 1.0/float(workunits.size());
   albedo_plate->write_request();
@@ -75,7 +75,7 @@ void initial_albedo( Options const& opt,
         drg_plate->search_by_location( workunit.min().x()/8,
                                        workunit.min().y()/8,
                                        opt.level - 3,
-                                       0, max_tid, true );
+                                       TransactionRange(0, max_tid) );
       if ( h_tile_records.empty() )
         continue;
 
@@ -84,7 +84,7 @@ void initial_albedo( Options const& opt,
           // Polling for DRG Tiles
           std::list<TileHeader> tile_records =
             drg_plate->search_by_location( ix, iy, opt.level,
-                                           0, max_tid, true );
+                                           TransactionRange(0, max_tid) );
 
           // No Tiles? No Problem!
           if ( tile_records.empty() )
@@ -104,7 +104,7 @@ void initial_albedo( Options const& opt,
 
           // Write result
           albedo_plate->write_update(image_temp, ix, iy,
-                                     opt.level, transaction_id);
+                                     opt.level);
         } // end for iy
       }   // end for ix
     }     // end foreach
@@ -115,7 +115,7 @@ void initial_albedo( Options const& opt,
 
   tpc.report_finished();
   albedo_plate->write_complete();
-  albedo_plate->transaction_complete(transaction_id,true);
+  albedo_plate->transaction_end(true);
 }
 
 template<class PixvalAccumulatorT>
@@ -132,8 +132,8 @@ void update_albedo( Options const& opt,
   uint32 tile_size = albedo_plate->default_tile_size();
   std::ostringstream ostr;
   ostr << "Albedo Update [id=" << opt.job_id << "]";
-  int32 transaction_id =
-    albedo_plate->transaction_request(ostr.str(),-1);
+  Transaction transaction_id =
+    albedo_plate->transaction_begin(ostr.str(),-1);
   TerminalProgressCallback tpc("photometrytk", "Update");
   double tpc_inc = 1.0/float(workunits.size());
   albedo_plate->write_request();
@@ -149,7 +149,8 @@ void update_albedo( Options const& opt,
       h_tile_records =
         drg_plate->search_by_location( workunit.min().x()/8,
                                        workunit.min().y()/8,
-                                       opt.level - 3, 0, max_tid, true );
+                                       opt.level - 3,
+                                       TransactionRange(0, max_tid) );
       if ( h_tile_records.empty() )
         continue;
 
@@ -159,7 +160,7 @@ void update_albedo( Options const& opt,
           // Polling for DRG Tiles
           std::list<TileHeader> tile_records =
             drg_plate->search_by_location( ix, iy, opt.level,
-                                           0, max_tid, true );
+                                           TransactionRange(0, max_tid) );
 
           // No Tiles? No Problem!
           if ( tile_records.empty() )
@@ -185,7 +186,7 @@ void update_albedo( Options const& opt,
 
           // Write result
           albedo_plate->write_update(current_albedo, ix, iy,
-                                     opt.level, transaction_id);
+                                     opt.level);
 
         } // end for iy
       }   // end for ix
@@ -197,7 +198,7 @@ void update_albedo( Options const& opt,
 
   tpc.report_finished();
   albedo_plate->write_complete();
-  albedo_plate->transaction_complete(transaction_id,true);
+  albedo_plate->transaction_end(true);
 }
 
 void handle_arguments( int argc, char *argv[], Options& opt ) {

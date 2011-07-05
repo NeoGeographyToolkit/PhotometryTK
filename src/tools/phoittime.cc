@@ -69,7 +69,8 @@ void update_exposure( Options& opt ) {
     int32 full = 1 << opt.level;
     BBox2i affected_tiles(0,0,full,full);
     std::list<TileHeader> drg_tiles =
-      drg_plate->search_by_region(opt.level, affected_tiles,j+1,j+1,1);
+      drg_plate->search_by_region(opt.level, affected_tiles,
+                                  TransactionRange(j+1,j+1));
     ImageView<PixelGrayA<float32> > drg_temp, albedo_temp;
 
     if ( project_info.reflectance() == ProjectMeta::NONE ) {

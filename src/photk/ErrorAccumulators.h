@@ -98,7 +98,8 @@ namespace photk {
       ImageView<PixelGrayA<float32> > albedoTemp;
 
       std::list<platefile::TileHeader> drg_tiles =
-        m_drg->search_by_location( ix, iy, m_level, m_transactionId, m_transactionId, true );
+        m_drg->search_by_location( ix, iy, m_level,
+                                   vw::platefile::TransactionRange(m_transactionId, m_transactionId) );
 
       BOOST_FOREACH(const platefile::TileHeader& drg_tile, drg_tiles) {
         if (drg_tile.transaction_id() == m_transactionId) {

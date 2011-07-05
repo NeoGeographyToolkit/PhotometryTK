@@ -38,8 +38,8 @@ void perform_mipmap( Options & opt ) {
   boost::shared_ptr<PlateFile> platefile =
     boost::shared_ptr<PlateFile>( new PlateFile(opt.url) );
 
-  PlateManager<PixelGrayA<float32> >* platemanager =
-    PlateManager<PixelGrayA<float32> >::make("equi",platefile);
+  boost::scoped_ptr<PlateManager<PixelGrayA<float32> > > platemanager(
+    PlateManager<PixelGrayA<float32> >::make("equi",platefile) );
 
   // Parsing region string
   if (!opt.region.empty()) {
@@ -89,16 +89,15 @@ void perform_mipmap( Options & opt ) {
               << opt.region_bbox << " at level "
               << opt.level;
   Transaction transaction_id =
-    platefile->transaction_request( description.str(), -1 );
+    platefile->transaction_begin( description.str(), -1 );
   platefile->write_request();
-  platemanager->mipmap(opt.level, opt.region_bbox, -1,
+  platemanager->mipmap(opt.level, opt.region_bbox,
                        transaction_id, false,
                        TerminalProgressCallback("photometrytk",
                                                 "Mipmapping:"),
                        opt.top_level);
   platefile->write_complete();
-  platefile->transaction_complete(transaction_id, true);
-  delete platemanager;
+  platefile->transaction_end(true);
 }
 
 void handle_arguments( int argc, char *argv[], Options& opt ) {

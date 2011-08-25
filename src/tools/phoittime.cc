@@ -48,9 +48,10 @@ void update_exposure( Options& opt ) {
   remote_ptk.get_project( project_info );
 
   // Deciding what cameras
-  int minidx, maxidx;
-  minidx = float(project_info.num_cameras()*opt.job_id)/float(opt.num_jobs);
-  maxidx = float(project_info.num_cameras()*(opt.job_id+1))/float(opt.num_jobs);
+  int minidx = boost::numeric_cast<int>(float(project_info.num_cameras()*opt.job_id)/
+					float(opt.num_jobs));
+  int maxidx = boost::numeric_cast<int>(float(project_info.num_cameras()*(opt.job_id+1))/
+					float(opt.num_jobs));
 
   // Load platefile
   boost::shared_ptr<PlateFile> drg_plate, albedo_plate, reflect_plate;
@@ -62,6 +63,12 @@ void update_exposure( Options& opt ) {
     remote_ptk.get_camera(j, cam_info);
 
     double prv_exposure_time = cam_info.exposure_t();
+
+    // Fix previous errors
+    if ( std::isnan(prv_exposure_time) ) {
+      cam_info.set_exposure_t(1.0);
+      prv_exposure_time = 1.0;
+    }
 
     // Deciding working area
     if ( opt.level < 0 )
@@ -75,7 +82,7 @@ void update_exposure( Options& opt ) {
 
     if ( project_info.reflectance() == ProjectMeta::NONE ) {
       // Accumulating time exposure
-      TimeDeltaNRAccumulator taccum(cam_info.exposure_t());
+      TimeDeltaNRAccumulator taccum(prv_exposure_time);
 
       // Updating current time exposure
       BOOST_FOREACH( const TileHeader& drg_tile, drg_tiles ) {
@@ -85,7 +92,11 @@ void update_exposure( Options& opt ) {
                             opt.level, -1, false );
         for_each_pixel(drg_temp, albedo_temp, taccum);
       }
-      cam_info.set_exposure_t(cam_info.exposure_t()+taccum.value());
+      if ( !std::isnan(taccum.value()) ) {
+	cam_info.set_exposure_t(cam_info.exposure_t()+taccum.value());
+      } else {
+	vw_out(WarningMessage) << "Failed to produce new exposure_t result.\n";
+      }
     } else {
       vw_throw( NoImplErr() << "Sorry, reflectance code is incomplete.\n" );
       // Accumulating time exposure

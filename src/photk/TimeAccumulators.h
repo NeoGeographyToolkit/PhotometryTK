@@ -52,6 +52,8 @@ namespace photk {
     }
 
     value_type value() const {
+      if ( m_denominator <= 0 )
+	vw::vw_out(vw::WarningMessage) << "No samples available.\n";
       return m_numerator/m_denominator;
     }
   };

@@ -5,10 +5,85 @@
 // __END_LICENSE__
 
 #include <photk/Common.h>
+#include <photk/config.h>
 #include <vw/Math/BBox.h>
+#include <vw/config.h>
+#include <boost/filesystem/path.hpp>
 using namespace vw;
 
 namespace photk {
+
+  BaseOptions::BaseOptions() {
+#if defined(VW_HAS_BIGTIFF) && VW_HAS_BIGTIFF == 1
+    gdal_options["COMPRESS"] = "LZW";
+#else
+    gdal_options["COMPRESS"] = "NONE";
+    gdal_options["BIGTIFF"] = "NO";
+#endif
+    raster_tile_size =
+      vw::Vector2i(vw::vw_settings().default_tile_size(),
+                   vw::vw_settings().default_tile_size());
+  }
+
+  BaseOptionsDescription::BaseOptionsDescription( BaseOptions& opt ) {
+    namespace po = boost::program_options;
+    (*this).add_options()
+      ("threads", po::value(&opt.num_threads)->default_value(0),
+       "Select the number of processors (threads) to use.")
+      ("no-bigtiff", "Tell GDAL to not create bigtiffs.")
+      ("version,v", "Display the version of software.")
+      ("help,h", "Display this help message");
+  }
+
+  boost::program_options::variables_map
+  check_command_line( int argc, char *argv[], BaseOptions& opt,
+                      boost::program_options::options_description const& public_options,
+                      boost::program_options::options_description const& hidden_options,
+                      boost::program_options::positional_options_description const& positional,
+                      std::string const& help ) {
+    namespace po = boost::program_options;
+    po::variables_map vm;
+    try {
+      po::options_description all_options;
+      all_options.add(public_options).add(hidden_options);
+      po::store( po::command_line_parser( argc, argv ).options(all_options).positional(positional).run(), vm );
+      po::notify( vm );
+    } catch (po::error const& e) {
+      vw::vw_throw( vw::ArgumentErr() << "Error parsing input:\n"
+                    << e.what() << "\n" << help << "\n" << public_options );
+    }
+    // We really don't want to use BIGTIFF unless we have to. It's
+    // hard to find viewers for bigtiff.
+    if ( vm.count("no-bigtiff") ) {
+      opt.gdal_options["BIGTIFF"] = "NO";
+    } else {
+      opt.gdal_options["BIGTIFF"] = "IF_SAFER";
+    }
+    if ( vm.count("help") )
+      vw::vw_throw( vw::ArgumentErr() << help << "\n" << public_options );
+    if ( vm.count("version") )
+      vw::vw_throw( vw::ArgumentErr() << PHOTK_PACKAGE_STRING << "\n\n"
+                    << "Built against:\n  " << VW_PACKAGE_STRING << "\n  BOOST "
+                    << PHOTK_BOOST_VERSION << "\n");
+    if ( opt.num_threads != 0 ) {
+      vw::vw_out() << "\t--> Setting number of processing threads to: "
+                   << opt.num_threads << std::endl;
+      vw::vw_settings().set_default_num_threads(opt.num_threads);
+    }
+
+    return vm;
+  }
+
+  bool has_cam_extension( std::string input ) {
+    boost::filesystem::path ipath( input );
+    std::string ext = ipath.extension();
+    if ( ext == ".cahvor" || ext == ".cahv" ||
+         ext == ".pin" || ext == ".pinhole" ||
+         ext == ".tsai" || ext == ".cmod" ||
+         ext == ".cahvore" )
+      return true;
+    return false;
+  }
 
   // This algorithm is lifted from, "Cutting circles and squares into
   // equal pieces" by Bose et. al.

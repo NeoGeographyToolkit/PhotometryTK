@@ -1,5 +1,17 @@
 // the configure options for PhotometryTK
+#ifndef __PHOTK_CONFIG_H__
+#define __PHOTK_CONFIG_H__
+
 #define PHOTK_VERSION           "@PACKAGE_VERSION@"
 #define PHOTK_PACKAGE_NAME      "@PACKAGE_NAME@"
 #define PHOTK_PACKAGE_STRING    "@PACKAGE_STRING@"
 #define PHOTK_PACKAGE_BUGREPORT "@PACKAGE_BUGREPORT@"
+
+#define PHOTK_BOOST_VERSION @Boost_VERSION@
+
+#include <boost/version.hpp>
+#if BOOST_VERSION != PHOTK_BOOST_VERSION
+#error You are using a different version of Boost than you used to build PhoTK!
+#endif
+
+#endif//__PHOTK_CONFIG_H__

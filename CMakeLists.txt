@@ -8,7 +8,7 @@ set(CMAKE_MODULE_PATH
   )
 
 set(PACKAGE_VERSION "0.1")
-set(PACKAGE_NAME photk)
+set(PACKAGE_NAME "Photometry Toolkit")
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "z.m.moratto@nasa.gov")
 

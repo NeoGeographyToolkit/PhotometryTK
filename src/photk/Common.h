@@ -154,6 +154,9 @@ namespace photk {
                                     progress_callback );
   }
 
+  std::vector<vw::BBox2i>
+  split_square_to_equal_area( vw::int32 const& side_length,
+                              size_t const& k );
 }
 
 #endif//__PHOTK_TOOLS_COMMON_H__

@@ -11,6 +11,7 @@ PROTOBUF_GENERATE_CPP(
 add_library(PhotometryTK
   ProjectService.cc
   RemoteProjectFile.cc
+  Common.cc
   ${PROTO_SRCS}
   )
 
@@ -19,6 +20,7 @@ target_link_libraries(PhotometryTK
   ${Boost_SYSTEM_LIBRARY}
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_THREAD_LIBRARY}
+  ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${VISIONWORKBENCH_CORE_LIBRARY}
   ${VISIONWORKBENCH_MATH_LIBRARY}
   ${VISIONWORKBENCH_IMAGE_LIBRARY}

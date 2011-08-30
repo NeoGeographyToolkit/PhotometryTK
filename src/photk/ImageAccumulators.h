@@ -8,6 +8,8 @@
 #ifndef __PHOTK_IMAGE_ACCUMULATORS_H__
 #define __PHOTK_IMAGE_ACCUMULATORS_H__
 
+#include <vw/Image/ImageMath.h>
+
 namespace photk {
 
   // This base class is used only to enforce coding standards

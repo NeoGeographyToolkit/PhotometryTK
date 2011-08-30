@@ -11,6 +11,7 @@
 #include <photk/ImageAccumulators.h>
 #include <vw/Image/ImageView.h>
 #include <vw/Image/Algorithms.h>
+#include <vw/Image/Filter.h>
 
 namespace photk {
 

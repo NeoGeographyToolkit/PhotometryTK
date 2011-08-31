@@ -19,6 +19,10 @@ option(BUILD_SHARED_LIBS
   "Produce shared libraries." TRUE)
 option(ENABLE_RPATHS
   "Use RPaths in executables to find shared libraries." FALSE)
+option(ENABLE_PROFILING
+  "Link against the google perftools." FALSE)
+option(ENABLE_TCMALLOC
+  "Link against the google perftools's tcmalloc." FALSE)
 if (ENABLE_RPATHS)
   set(CMAKE_SKIP_RPATH                  FALSE CACHE BOOL "")
   set(CMAKE_SKIP_BUILD_RPATH            FALSE CACHE BOOL "")
@@ -60,7 +64,22 @@ find_package(VisionWorkbench REQUIRED
   )
 find_package(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
+find_package(GooglePerfTools)
 photk_enable_testing()
+
+if (ENABLE_PROFILING AND GOOGLE_PERFTOOLS_FOUND)
+  set(PHOTK_ENABLE_PROFILING ON )
+else()
+  set(PHOTK_ENABLE_PROFILING OFF )
+endif()
+
+if (ENABLE_TCMALLOC AND GOOGLE_PERFTOOLS_FOUND)
+  set(PHOTK_ENABLE_TCMALLOC ON)
+else()
+  set(PHOTK_ENABLE_TCMALLOC OFF)
+endif()
+
+message("PHOTK IS " ${PHOTK_ENABLE_PROFILING})
 
 # Produce photk/config.h
 configure_file(

@@ -9,9 +9,10 @@ PROTOBUF_GENERATE_CPP(
   )
 
 add_library(PhotometryTK
+  Common.cc
+  PlateCommon.cc
   ProjectService.cc
   RemoteProjectFile.cc
-  Common.cc
   ${PROTO_SRCS}
   )
 
@@ -35,6 +36,7 @@ install(FILES
   ErrorAccumulators.h
   ImageAccumulators.h
   Macros.h
+  PlateCommon.h
   ProjectFileIO.h
   ProjectService.h
   RecursiveBBoxAccumulator.h

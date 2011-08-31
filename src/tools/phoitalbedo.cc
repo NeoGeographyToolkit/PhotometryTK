@@ -19,42 +19,13 @@
 #include <photk/Macros.h>
 #include <photk/RemoteProjectFile.h>
 #include <photk/AlbedoAccumulators.h>
+#include <photk/PlateCommon.h>
 #include <vw/Image.h>
-#include <vw/Plate/PlateFile.h>
 #include <boost/foreach.hpp>
-#include <boost/tuple/tuple.hpp>
-#include <boost/tuple/tuple_comparison.hpp>
 
+using namespace photk;
 using namespace vw;
 using namespace vw::platefile;
-
-// Custom types to cut down on my keystrokes
-typedef boost::shared_ptr<PlateFile> PlatePtr;
-typedef std::list<TileHeader> HeaderList;
-typedef boost::tuple<uint32,uint32> rowcol_t;
-
-typedef std::map<rowcol_t,HeaderList> composite_map_t;
-typedef std::pair<uint32,ImageView<PixelGrayA<float32> > > trans_view_t;
-typedef std::map<rowcol_t,std::list<trans_view_t> > cache_map_t;
-
-struct TileCache {
-  typedef ImageView<PixelGrayA<float32> > result_type;
-  std::vector<result_type > m_tiles;
-  size_t index;
-  TileCache( size_t n, size_t tile_size ) : m_tiles(n) {
-    BOOST_FOREACH( result_type& tile, m_tiles )
-      tile.set_size(tile_size,tile_size);
-  }
-
-  TileCache() : index(0) {}
-
-  result_type& get() {
-    VW_ASSERT( index < m_tiles.size(), ArgumentErr() << "Requesting tile outside cache, " << index << " of " << m_tiles.size() << "\n" );
-    return m_tiles[index++];
-  }
-
-  size_t size() const { return m_tiles.size(); }
-};
 
 struct Options : photk::BaseOptions {
   // Input
@@ -69,40 +40,11 @@ struct Options : photk::BaseOptions {
   // Commonly reused variables
   boost::scoped_ptr<photk::RemoteProjectFile> remote_ptk;
   photk::ProjectMeta project_info;
-  PlatePtr drg_plate, albedo_plate, reflect_plate;
+  photk::PlatePtr drg_plate, albedo_plate, reflect_plate;
   std::vector<double> exposure_vec;
   size_t tile_size;
-  TileCache tile_cache;
+  photk::TileCache tile_cache;
 };
-
-uint64 calc_cache_tile_count( PlatePtr plate ) {
-  const uint64 TILE_BYTES = plate->default_tile_size() * plate->default_tile_size() * uint64(PixelNumBytes<PixelGrayA<float32> >::value);
-  const uint64 CACHE_BYTES = vw_settings().system_cache_size();
-  return CACHE_BYTES/TILE_BYTES;
-}
-
-void cache_consume_tiles(PlatePtr plate, HeaderList const& headers,
-                         cache_map_t& cmap, TileCache& cache ) {
-  cmap.clear(); // Clear to insure no redundant data. Redundant is
-                // possible since we don't hash on transaction ID.
-  Datastore::TileSearch tile_lookup;
-  tile_lookup.reserve( headers.size() );
-  std::copy(headers.begin(), headers.end(),
-            std::back_inserter(tile_lookup));
-  BOOST_FOREACH(const Tile& t, plate->batch_read(tile_lookup)) {
-    trans_view_t image_data(t.hdr.transaction_id(), cache.get());
-    boost::scoped_ptr<SrcImageResource> r(SrcMemoryImageResource::open(t.hdr.filetype(),&t.data->operator[](0), t.data->size()));
-    read_image(image_data.second, *r);
-    cmap[rowcol_t(t.hdr.row(),t.hdr.col())].push_back( image_data );
-  }
-}
-
-composite_map_t build_map(HeaderList const& headers) {
-  composite_map_t cmap;
-  BOOST_FOREACH( TileHeader const& hdr, headers )
-    cmap[rowcol_t(hdr.row(),hdr.col())].push_back(hdr);
-  return cmap;
-}
 
 void initialize_albedo( HeaderList drg_headers,
                         ChannelAccumulator<MinMaxAccumulator<float32 > >& minmax_acc,
@@ -229,8 +171,8 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   opt.remote_ptk->get_platefiles(opt.drg_plate,opt.albedo_plate,
                                  opt.reflect_plate);
   opt.tile_size = opt.albedo_plate->default_tile_size();
-  opt.tile_cache = TileCache( calc_cache_tile_count( opt.albedo_plate ),
-                              opt.tile_size );
+  opt.tile_cache = photk::TileCache( calc_cache_tile_count( opt.albedo_plate ),
+                                     opt.tile_size );
 
   if ( opt.level < 0 )
     opt.level = opt.drg_plate->num_levels() - 1;

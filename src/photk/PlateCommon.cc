@@ -27,7 +27,7 @@ vw::uint64 photk::calc_cache_tile_count( PlatePtr plate ) {
 }
 
 void photk::cache_consume_tiles(PlatePtr plate, HeaderList const& headers,
-                         cache_map_t& cmap, TileCache& cache ) {
+                                cache_map_t& cmap, TileCache& cache ) {
   cmap.clear(); // Clear to insure no redundant data. Redundant is
   // possible since we don't hash on transaction ID.
   platefile::Datastore::TileSearch tile_lookup;
@@ -39,6 +39,22 @@ void photk::cache_consume_tiles(PlatePtr plate, HeaderList const& headers,
     boost::scoped_ptr<SrcImageResource> r(SrcMemoryImageResource::open(t.hdr.filetype(),&t.data->operator[](0), t.data->size()));
     read_image(image_data.second, *r);
     cmap[rowcol_t(t.hdr.row(),t.hdr.col())].push_back( image_data );
+  }
+}
+
+void photk::cache_consume_tiles(PlatePtr plate, HeaderList const& headers,
+                                std::vector<hdr_view_t>& cmap, TileCache& cache ) {
+  cmap.clear(); // Clear to insure no redundant data. Redundant is
+  cmap.reserve( headers.size() );
+  // possible since we don't hash on transaction ID.
+  platefile::Datastore::TileSearch tile_lookup;
+  tile_lookup.reserve( headers.size() );
+  std::copy(headers.begin(), headers.end(),
+            std::back_inserter(tile_lookup));
+  BOOST_FOREACH(const platefile::Tile& t, plate->batch_read(tile_lookup)) {
+    cmap.push_back(hdr_view_t(t.hdr, cache.get()));
+    boost::scoped_ptr<SrcImageResource> r(SrcMemoryImageResource::open(t.hdr.filetype(),&t.data->operator[](0), t.data->size()));
+    read_image(cmap.back().second, *r);
   }
 }
 

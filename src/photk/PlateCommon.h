@@ -25,6 +25,7 @@ namespace photk {
 
   typedef std::map<rowcol_t,HeaderList> composite_map_t;
   typedef std::pair<vw::uint32,vw::ImageView<vw::PixelGrayA<vw::float32> > > trans_view_t;
+  typedef std::pair<vw::platefile::TileHeader,vw::ImageView<vw::PixelGrayA<vw::float32> > > hdr_view_t;
   typedef std::map<rowcol_t,std::list<trans_view_t> > cache_map_t;
 
   struct TileCache {
@@ -44,6 +45,8 @@ namespace photk {
   vw::uint64 calc_cache_tile_count( PlatePtr plate );
   void cache_consume_tiles(PlatePtr plate, HeaderList const& headers,
                            cache_map_t& cmap, TileCache& cache );
+  void cache_consume_tiles(PlatePtr plate, HeaderList const& headers,
+                           std::vector<hdr_view_t>& cmap, TileCache& cache );
   composite_map_t build_map(HeaderList const& headers);
 }
 

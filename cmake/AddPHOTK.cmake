@@ -12,6 +12,9 @@ macro(add_photk_executable name)
   if ( PHOTK_ENABLE_TCMALLOC )
     target_link_libraries( ${name} ${TCMALLOC_LIBRARY} )
   endif()
+  if ( MKL_LIBRARIES )
+    target_link_libraries( ${name} ${MKL_LIBRARIES} )
+  endif()
 endmacro(add_photk_executable name)
 
 macro(add_photk_tool name)
@@ -63,6 +66,10 @@ function(photk_add_test source_file)
     DEPENDS ${executable}
     )
   add_dependencies(check ${executable}Exec)
+
+  if ( MKL_LIBRARIES )
+    target_link_libraries( ${executable} ${MKL_LIBRARIES} )
+  endif()
 
   # file(READ "${source_file}" contents)
   # string(REGEX MATCHALL "TEST_?F?\\(([A-Za-z_0-9 ,]+)\\)" found_tests ${contents})

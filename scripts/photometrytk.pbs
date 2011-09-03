@@ -1,0 +1,30 @@
+#PBS -S /bin/bash
+#PBS -j oe
+#PBS -l select=1:ncpus=8
+#PBS -l walltime=1:00:00
+#PBS -N PhotometryTK
+#PBS -q devel@pbspl3
+
+module load mpi-mvapich2/1.4.1/intel
+MPICMD="mpiexec -comm none -np 8"
+SERVERURL="zmq://pfe7:5566/test_section.ptk"
+
+# Work directory with input files and job files
+cd $HOME/nobackup/Moon/A17_DRG_small
+
+# You need to have already started up an photk_server. I'm doing so on
+# the front end node. I think this is okay since most of the time that
+# process will just be idling.
+SCRIPTDIR=$HOME/projects/PhotometryTK/scripts
+
+# Run the image insertation process
+$MPICMD $SCRIPTDIR/phodrg2plate_serial.sh jobs $SERVERURL
+
+# Run the generate albedo and solve time at a higher level
+for i in {0..39}
+do $MPICMD $SCRIPTDIR/phoitalbedo_serial.sh 8 7 $SERVERURL
+$MPICMD $SCRIPTDIR/phoittime_serial.sh 8 7 $SERVERURL
+done
+
+# Generate the albedo at the native resolution
+$MPICMD $SCRIPTDIR/phoitalbedo_serial.sh 8 9 $SERVERURL

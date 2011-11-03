@@ -1,16 +1,16 @@
 #PBS -S /bin/bash
 #PBS -j oe
-#PBS -l select=1:ncpus=8
-#PBS -l walltime=1:00:00
+#PBS -l select=9:ncpus=8:model=har
+#PBS -l walltime=6:00:00
 #PBS -N PhotometryTK
-#PBS -q devel@pbspl3
+#PBS -q normal
 
 module load mpi-mvapich2/1.4.1/intel
-MPICMD="mpiexec -comm none -np 8"
-SERVERURL="zmq://pfe7:5566/test_section.ptk"
+MPICMD="mpiexec -comm none -np 68"
+SERVERURL="zmq://pfe1:5566/a17dim_50.ptk"
 
 # Work directory with input files and job files
-cd $HOME/nobackup/Moon/A17_DRG_small
+cd $HOME/nobackup/Moon/A17_DRG_50
 
 # You need to have already started up an photk_server. I'm doing so on
 # the front end node. I think this is okay since most of the time that
@@ -19,12 +19,29 @@ SCRIPTDIR=$HOME/projects/PhotometryTK/scripts
 
 # Run the image insertation process
 $MPICMD $SCRIPTDIR/phodrg2plate_serial.sh jobs $SERVERURL
+if [[ $? -ne 0 ]]; then
+    echo "Failed PhoDRG2Plate, job " $[$?-256]
+    exit
+fi
 
-# Run the generate albedo and solve time at a higher level
-for i in {0..39}
-do $MPICMD $SCRIPTDIR/phoitalbedo_serial.sh 8 7 $SERVERURL
-$MPICMD $SCRIPTDIR/phoittime_serial.sh 8 7 $SERVERURL
-done
+# # Run the generate albedo and solve time at a higher level
+# for i in {0..29}
+# do $MPICMD $SCRIPTDIR/phoitalbedo_serial.sh 8 7 $SERVERURL
+# if [[ $? -ne 0 ]]; then
+#     echo "Failed PhoitAlbedo, job " $[$?-256]
+#     exit
+# fi
+# $MPICMD $SCRIPTDIR/phoittime_serial.sh 8 7 $SERVERURL
+# if [[ $? -ne 0 ]]; then
+#     echo "Failed Phoittime, job " $[$?-256]
+#     exit
+# fi
+# done
 
-# Generate the albedo at the native resolution
-$MPICMD $SCRIPTDIR/phoitalbedo_serial.sh 8 9 $SERVERURL
+# # Generate the albedo at the native resolution
+# $MPICMD $SCRIPTDIR/phoitalbedo_serial.sh 8 9 $SERVERURL
+
+# if [[ $? -ne 0 ]]; then
+#     echo "Failed final PhoitAlbedo, job " $[$?-256]
+#     exit
+# fi

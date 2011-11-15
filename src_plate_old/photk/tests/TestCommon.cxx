@@ -34,10 +34,24 @@ TEST(Common, SplitSquareEqualArea) {
   // and are contained by the input.
   std::vector<BBox2i> regions = split_square_to_equal_area(256,80);
   BBox2i global_box(0,0,256,256);
+  uint64 area = 0;
   for ( size_t i = 0; i < 80; i++ ) {
     EXPECT_TRUE( global_box.contains(regions[i]) );
+    area += regions[i].width()*regions[i].height();
     for ( size_t j = i+1; j < 80; j++ )
       EXPECT_FALSE( regions[i].intersects(regions[j]) );
   }
+  EXPECT_EQ( 256*256, area );
 
+  // A more aggressive test that I think is failing
+  regions = split_square_to_equal_area(2048,2048);
+  global_box = BBox2i(0,0,2048,2048);
+  area = 0;
+  for ( size_t i = 0; i < 2048; i++ ) {
+    EXPECT_TRUE( global_box.contains(regions[i]) );
+    area += regions[i].width()*regions[i].height();
+    for ( size_t j = i+1; j < 2048; j++ )
+      EXPECT_FALSE( regions[i].intersects(regions[j]) );
+  }
+  EXPECT_EQ( 2048*2048, area );
 }

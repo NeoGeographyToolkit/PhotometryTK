@@ -31,7 +31,7 @@ struct Options : photk::BaseOptions {
   // Input
   Url ptk_url;
   int32 level;
-  bool perform_2band;
+  bool perform_2band, force_initialize;
 
   // For spawning multiple jobs
   int32 job_id, num_jobs;
@@ -46,13 +46,14 @@ struct Options : photk::BaseOptions {
   photk::TileCache tile_cache;
 };
 
-void initialize_albedo( HeaderList drg_headers,
+void initialize_albedo( HeaderList const& drg_headers,
                         ChannelAccumulator<MinMaxAccumulator<float32 > >& minmax_acc,
                         Options& opt ) {
   photk::AlbedoInitNRAccumulator<PixelGrayA<float32> > accum(opt.tile_size,opt.tile_size);
 
   composite_map_t drg_map = build_map( drg_headers );
   composite_map_t::const_iterator i = drg_map.begin(), end = drg_map.end();
+
   do {
     size_t size = 0;
     HeaderList sub_drg;
@@ -66,22 +67,42 @@ void initialize_albedo( HeaderList drg_headers,
       }
     }
 
-    // Load up tiles
-    opt.tile_cache.index = 0;
-    cache_map_t drg_cache;
-    cache_consume_tiles( opt.drg_plate, sub_drg, drg_cache, opt.tile_cache );
+    if ( size != 0 ) {
+      // Our most common case and what we've optimized for
 
-    // Do the albedo work
-    for ( cache_map_t::const_iterator map_it = drg_cache.begin();
-          map_it != drg_cache.end(); map_it++ ) {
+      // Load up tiles
+      opt.tile_cache.index = 0;
+      cache_map_t drg_cache;
+      cache_consume_tiles( opt.drg_plate, sub_drg, drg_cache, opt.tile_cache );
 
-      BOOST_FOREACH( trans_view_t const& data, map_it->second )
-        accum( data.second, opt.exposure_vec[data.first-1] );
+      // Do the albedo work
+      for ( cache_map_t::const_iterator map_it = drg_cache.begin();
+            map_it != drg_cache.end(); map_it++ ) {
+
+        BOOST_FOREACH( trans_view_t const& data, map_it->second )
+          accum( data.second, opt.exposure_vec[data.first-1] );
+
+        ImageView<PixelGrayA<float32> > result = accum.result();
+        for_each_pixel(alpha_to_mask(result), minmax_acc);
+        opt.albedo_plate->write_update( result, map_it->first.get<1>(),
+                                        map_it->first.get<0>(), opt.level );
+      }
+    } else {
+      // The input for our tile is larger than our cache size
+      // Manually loading
+
+      BOOST_FOREACH( TileHeader const& thdr, i->second ) {
+        ImageView<PixelGrayA<float32> > input;
+        opt.drg_plate->read(input, thdr.col(), thdr.row(), thdr.level(),
+                            thdr.transaction_id(), true);
+        accum(input, opt.exposure_vec[thdr.transaction_id()-1]);
+      }
 
       ImageView<PixelGrayA<float32> > result = accum.result();
       for_each_pixel(alpha_to_mask(result), minmax_acc);
-      opt.albedo_plate->write_update( result, map_it->first.get<1>(),
-                                      map_it->first.get<0>(), opt.level );
+      opt.albedo_plate->write_update( result, i->first.get<1>(),
+                                      i->first.get<0>(), opt.level );
+      ++i;
     }
   } while ( i != end );
 }
@@ -114,25 +135,46 @@ void update_albedo( HeaderList drg_headers,
       }
     }
 
-    // Load up DRG tiles
-    opt.tile_cache.index = albedo_index;
-    cache_map_t drg_cache;
-    cache_consume_tiles( opt.drg_plate, sub_drg, drg_cache, opt.tile_cache );
+    if ( size != 0 ) {
+      // Most common case where our cache can hold everything
 
-    // Do the albedo work
-    for ( cache_map_t::const_iterator map_it = drg_cache.begin();
-          map_it != drg_cache.end(); map_it++ ) {
+      // Load up DRG tiles
+      opt.tile_cache.index = albedo_index;
+      cache_map_t drg_cache;
+      cache_consume_tiles( opt.drg_plate, sub_drg, drg_cache, opt.tile_cache );
 
+      // Do the albedo work
+      for ( cache_map_t::const_iterator map_it = drg_cache.begin();
+            map_it != drg_cache.end(); map_it++ ) {
+
+        ImageView<PixelGrayA<float32> >& albedo =
+          albedo_cache[map_it->first].back().second;
+
+        BOOST_FOREACH( trans_view_t const& data, map_it->second )
+          accum( data.second, albedo, opt.exposure_vec[data.first-1] );
+
+        select_channel(albedo,0) += select_channel(accum.result(),0);
+        for_each_pixel(alpha_to_mask(albedo), minmax_acc);
+        opt.albedo_plate->write_update( albedo, map_it->first.get<1>(),
+                                        map_it->first.get<0>(), opt.level );
+      }
+    } else {
       ImageView<PixelGrayA<float32> >& albedo =
-        albedo_cache[map_it->first].back().second;
+        albedo_cache[i->first].back().second;
 
-      BOOST_FOREACH( trans_view_t const& data, map_it->second )
-        accum( data.second, albedo, opt.exposure_vec[data.first-1] );
+      // Input is larger than our cache size
+      BOOST_FOREACH( TileHeader const& thdr, i->second ) {
+        ImageView<PixelGrayA<float32> > input;
+        opt.drg_plate->read(input, thdr.col(), thdr.row(), thdr.level(),
+                            thdr.transaction_id(), true);
+        accum( input, albedo, opt.exposure_vec[thdr.transaction_id()-1] );
+      }
 
       select_channel(albedo,0) += select_channel(accum.result(),0);
       for_each_pixel(alpha_to_mask(albedo), minmax_acc);
-      opt.albedo_plate->write_update( albedo, map_it->first.get<1>(),
-                                      map_it->first.get<0>(), opt.level );
+      opt.albedo_plate->write_update( albedo, i->first.get<1>(),
+                                      i->first.get<0>(), opt.level );
+      ++i;
     }
 
   } while ( i != end );
@@ -144,7 +186,8 @@ void handle_arguments( int argc, char *argv[], Options& opt ) {
   general_options.add_options()
     ("level,l", po::value(&opt.level)->default_value(-1), "Default is to process at lowest level.")
     ("job_id,j", po::value(&opt.job_id)->default_value(0), "")
-    ("num_jobs,n", po::value(&opt.num_jobs)->default_value(1), "");
+    ("num_jobs,n", po::value(&opt.num_jobs)->default_value(1), "")
+    ("force-initialize",po::bool_switch(&opt.force_initialize)->default_value(false), "Force a complete restart of albedo");
   general_options.add( photk::BaseOptionsDescription(opt) );
 
   po::options_description positional("");
@@ -206,8 +249,15 @@ int main( int argc, char *argv[] ) {
 
     // At a high level, request top tiles from DRG to figure out where
     // populated areas are. We'll never actually load these tiles.
+    BBox2i l3_query = opt.work_area / 8;
+    if ( opt.work_area.max()[0] % 8 )
+      l3_query.max()[0]++;
+    if ( opt.work_area.max()[1] % 8 )
+      l3_query.max()[1]++;
+    VW_DEBUG_ASSERT( (l3_query * 8).contains( opt.work_area ),
+                     MathErr() << "L3 Query code is incorrect");
     HeaderList l3_test_records =
-      opt.drg_plate->search_by_region( opt.level - 3, opt.work_area / 8,
+      opt.drg_plate->search_by_region( opt.level - 3, l3_query,
                                        TransactionRange(-1,-1) );
 
     if ( l3_test_records.size() == 0 )
@@ -231,15 +281,23 @@ int main( int argc, char *argv[] ) {
       HeaderList drg_headers =
         opt.drg_plate->search_by_region( opt.level, query,
                                          TransactionRange(0,opt.project_info.num_cameras()+1) );
-      HeaderList albedo_headers =
-        opt.albedo_plate->search_by_region( opt.level, query,
-                                            TransactionRange(-1,-1) );
 
-      // Actually process jobs!
-      if ( albedo_headers.empty() )
+      if (drg_headers.empty())
+        continue;
+
+      if ( opt.force_initialize ) {
         initialize_albedo( drg_headers, minmaxacc, opt );
-      else
-        update_albedo( drg_headers, albedo_headers, minmaxacc, opt );
+      } else {
+        HeaderList albedo_headers =
+          opt.albedo_plate->search_by_region( opt.level, query,
+                                              TransactionRange(-1,-1) );
+
+        // Actually process jobs!
+        if ( albedo_headers.empty() )
+          initialize_albedo( drg_headers, minmaxacc, opt );
+        else
+          update_albedo( drg_headers, albedo_headers, minmaxacc, opt );
+      }
 
       tpc.report_incremental_progress(tpc_inc);
     }

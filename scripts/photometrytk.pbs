@@ -1,24 +1,38 @@
 #PBS -S /bin/bash
 #PBS -j oe
-#PBS -l select=9:ncpus=8:model=har
-#PBS -l walltime=6:00:00
+#PBS -l select=8:ncpus=8:model=har
+#PBS -l walltime=8:00:00
 #PBS -N PhotometryTK
 #PBS -q normal
 
 module load mpi-mvapich2/1.4.1/intel
-MPICMD="mpiexec -comm none -np 68"
-SERVERURL="zmq://pfe1:5566/a17dim_50.ptk"
+MPICMD="mpiexec -comm none -pernode"
+SERVER=$(hostname)
+PTKFILE=apollo_combined.ptk
+SERVERURL=zmq://$SERVER:5566/$PTKFILE
+SCRIPTDIR=/u/zmoratto/nobackup/Moon/apollo_metric/workdir
 
-# Work directory with input files and job files
-cd $HOME/nobackup/Moon/A17_DRG_50
+# Fire up index server
+cd $SCRIPTDIR
+ptk_server $PTKFILE --url zmq://*:5566 &
+INDEX_PID=$!
+sleep 10
+
+# Double check the index server just didn't die
+if ps -p $INDEX_PID > /dev/null
+then
+    echo "Good to go!"
+else
+    echo "Failed to start ptk server"
+    exit
+fi
 
 # You need to have already started up an photk_server. I'm doing so on
 # the front end node. I think this is okay since most of the time that
 # process will just be idling.
-SCRIPTDIR=$HOME/projects/PhotometryTK/scripts
 
 # Run the image insertation process
-$MPICMD $SCRIPTDIR/phodrg2plate_serial.sh jobs $SERVERURL
+$MPICMD /u/zmoratto/projects/PhotometryTK/scripts/phodrg2plate_serial.sh jobs $SERVERURL
 if [[ $? -ne 0 ]]; then
     echo "Failed PhoDRG2Plate, job " $[$?-256]
     exit
@@ -45,3 +59,7 @@ fi
 #     echo "Failed final PhoitAlbedo, job " $[$?-256]
 #     exit
 # fi
+
+# Finish up and kill the index_server
+kill $INDEX_PID
+sleep 20

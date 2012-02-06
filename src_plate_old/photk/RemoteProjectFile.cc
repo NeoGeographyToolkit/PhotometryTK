@@ -195,23 +195,23 @@ namespace photk {
 
     if ( project_info.drg_channel_type() == "float32" ) {
       drg.reset( new PlateFile(base_url+"DRG.plate"+postfix,
-                               project_info.plate_manager(), "", 256, "tif",
+                               project_info.plate_manager(), "", 256, "exr",
                                VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
     } else if ( project_info.drg_channel_type() == "int16" ) {
       drg.reset( new PlateFile(base_url+"DRG.plate"+postfix,
-                               project_info.plate_manager(), "", 256, "tif",
+                               project_info.plate_manager(), "", 256, "exr",
                                VW_PIXEL_GRAYA, VW_CHANNEL_INT16) );
     } else {
       drg.reset( new PlateFile(base_url+"DRG.plate"+postfix,
-                               project_info.plate_manager(), "", 256, "tif",
+                               project_info.plate_manager(), "", 256, "exr",
                                VW_PIXEL_GRAYA, VW_CHANNEL_UINT8) );
     }
     albedo.reset( new PlateFile(base_url+"Albedo.plate"+postfix,
-                                project_info.plate_manager(), "", 256, "tif",
+                                project_info.plate_manager(), "", 256, "exr",
                                 VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
     if ( project_info.reflectance() != ProjectMeta::NONE ) {
       reflect.reset( new PlateFile(base_url+"Reflectance.plate"+postfix,
-                                   project_info.plate_manager(), "", 256, "tif",
+                                   project_info.plate_manager(), "", 256, "exr",
                                    VW_PIXEL_GRAYA, VW_CHANNEL_FLOAT32) );
     }
   }

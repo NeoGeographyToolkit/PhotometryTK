@@ -16,6 +16,8 @@
 // __END_LICENSE__
 
 // To do:
+// Remove the albedo code from VW and ASP, including the directories, etc.
+// Make the unit tests work
 // Wipe all the code having to do with images.
 // How to create kml tiles?
 // Massive cleanup needed in reconstruct.cc. Remove all flow without tiles.

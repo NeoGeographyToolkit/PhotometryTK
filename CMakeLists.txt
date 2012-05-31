@@ -59,7 +59,6 @@ find_package(VisionWorkbench REQUIRED
   math
   image
   fileio
-  plate
   cartography
   )
 find_package(GooglePerfTools)

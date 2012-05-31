@@ -2,11 +2,6 @@ include_directories(${VISIONWORKBENCH_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
-#PROTOBUF_GENERATE_CPP(
-#  PROTO_SRCS
-#  PROTO_HDRS
-#  ProjectFile.proto
-#  )
 
 add_library(PhotometryTK
         Albedo.cc    Index.cc    Reconstruct.cc       Shadow.cc            Weights.cc
@@ -23,7 +18,6 @@ target_link_libraries(PhotometryTK
   ${VISIONWORKBENCH_MATH_LIBRARY}
   ${VISIONWORKBENCH_IMAGE_LIBRARY}
   ${VISIONWORKBENCH_FILEIO_LIBRARY}
-  ${VISIONWORKBENCH_PLATE_LIBRARY}
   )
 
 install(FILES

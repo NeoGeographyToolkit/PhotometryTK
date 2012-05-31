@@ -6,10 +6,9 @@ The user needs to have installed:
   1. GDAL 1.8+
   2. Boost 1.36+
   3. RabbitMQ C Client or ZeroMQ
-  4. Protobuf
-  5. NASA Vision Workbench from GitHub:
+  4. NASA Vision Workbench from GitHub:
        https://github.com/visionworkbench/visionworkbench
-     built with Plate Module and optional GDAL support
+     built with optional GDAL support
 
 Please follow those distribution's install guides for installation
 instructions.
@@ -26,8 +25,7 @@ setting configuration options is easier with the 'ccmake' tool.
   2. mkdir build
   3. cd build
   4. cmake .. -DVISIONWORKBENCH_ROOT:PATH=${YOUR VW INSTALL DIR}
-              -DBoost_ROOT:PATH=${YOUR BOOST INSTALL DIR}
-              -DPROTOBUF_ROOT:PATH=${YOUR PROTOBUF INSTALL DIR}
+              -DBOOST_ROOT:PATH=${YOUR BOOST INSTALL DIR}
 
 Here are some additional options you can set in the cmake call:
   *  Use RPATHs in resulting libraries
@@ -49,3 +47,4 @@ Running unit tests
 Photometry TK has some unit testing available to insure proper
 function. To operate them, change directory to your build directory.
   7. make check
+

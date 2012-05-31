@@ -62,15 +62,8 @@ find_package(VisionWorkbench REQUIRED
   plate
   cartography
   )
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIRS})
 find_package(GooglePerfTools)
-find_package(MKL)
 photk_enable_testing()
-
-if (MKL_LIBRARIES)
-  include_directories(${MKL_INCLUDE_DIR})
-endif()
 
 if (ENABLE_PROFILING AND GOOGLE_PERFTOOLS_FOUND)
   set(PHOTK_ENABLE_PROFILING ON )

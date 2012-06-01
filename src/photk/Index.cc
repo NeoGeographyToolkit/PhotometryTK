@@ -30,8 +30,8 @@
 using namespace vw;
 using namespace vw::math;
 using namespace vw::cartography;
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Index.h>
+#include <photk/Reconstruct.h>
+#include <photk/Index.h>
 
 template <class ViewT>
 std::vector<float> build_histogram(ImageViewBase<ViewT> const& view) {

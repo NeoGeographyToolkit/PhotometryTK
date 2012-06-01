@@ -12,9 +12,8 @@
 
 #include <string>
 #include <vector>
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
   //computes the exposure time from image, albedo and DEM
@@ -33,6 +32,6 @@ namespace photometry {
   void AppendExposureInfoToFile(ModelParams modelParams);
   void ReadExposureInfoFromFile(ModelParams *modelParams);
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_EXPOSURE_H__

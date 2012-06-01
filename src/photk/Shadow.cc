@@ -26,11 +26,11 @@ using namespace vw;
 using namespace vw::cartography;
 
 #include <math.h>
-#include <vw/Photometry/Shadow.h>
-#include <vw/Photometry/Reconstruct.h>
-using namespace vw::photometry;
+#include <photk/Shadow.h>
+#include <photk/Reconstruct.h>
+using namespace photometry;
 
-void vw::photometry::ComputeSaveShadowMap( ModelParams input_img_params,
+void photometry::ComputeSaveShadowMap( ModelParams input_img_params,
                                            GlobalParams globalParams) {
   std::string shadowMapFile = input_img_params.shadowFilename;
   std::string origfile = input_img_params.inputFilename;
@@ -67,7 +67,7 @@ void vw::photometry::ComputeSaveShadowMap( ModelParams input_img_params,
 //output_img_file is the brightness compensated image file with invalid values for shadow
 //this is also the filename of the output image where shadows are added
 //
-void vw::photometry::AddShadows(std::string input_img_file,
+void photometry::AddShadows(std::string input_img_file,
                                 std::string output_img_file,
                                 std::string shadow_file) {
   DiskImageView<PixelMask<PixelGray<uint8> > >  input_img(input_img_file);

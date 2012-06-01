@@ -37,8 +37,8 @@ using namespace std;
 using namespace vw;
 using namespace vw::math;
 using namespace vw::cartography;
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Outlier.h>
-#include <vw/Photometry/Exposure.h>
-#include <vw/Photometry/Misc.h>
+#include <photk/Reconstruct.h>
+#include <photk/Outlier.h>
+#include <photk/Exposure.h>
+#include <photk/Misc.h>
 

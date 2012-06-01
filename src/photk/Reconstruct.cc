@@ -8,11 +8,11 @@
 /// \file ControlNetwork.cc
 ///
 
-#include <vw/Photometry/Reconstruct.h>
-using namespace vw::photometry;
+#include <photk/Reconstruct.h>
+using namespace photometry;
 
 // Generic Ostream options for Debugging
-std::ostream& vw::photometry::operator<<( std::ostream& os,
+std::ostream& photometry::operator<<( std::ostream& os,
                                           GlobalParams const& global ) {
   os << "-- Global Params --\n";
   os << " ReflectanceType: " << global.reflectanceType
@@ -26,7 +26,7 @@ std::ostream& vw::photometry::operator<<( std::ostream& os,
   return os;
 }
 
-std::ostream& vw::photometry::operator<<( std::ostream& os,
+std::ostream& photometry::operator<<( std::ostream& os,
                                           ModelParams const& model ) {
   os << "-- Model Params --\n";
   os << " Exposure Time: " << model.exposureTime << "\n";

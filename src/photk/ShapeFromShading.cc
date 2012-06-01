@@ -26,9 +26,9 @@
 #include <vw/Image/ImageViewRef.h>
 #include <vw/Image/Interpolation.h>
 #include <vw/Image/ImageMath.h>
-#include <vw/Photometry/Reflectance.h>
-#include <vw/Photometry/Weights.h>
-#include <vw/Photometry/Misc.h>
+#include <photk/Reflectance.h>
+#include <photk/Weights.h>
+#include <photk/Misc.h>
 
 #include <cmath>
 //#include <ctime>
@@ -38,10 +38,10 @@ using namespace vw;
 using namespace vw::cartography;
 
 #include <math.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/ReconstructError.h>
-#include <vw/Photometry/ShapeFromShading.h>
-using namespace vw::photometry;
+#include <photk/Reconstruct.h>
+#include <photk/ReconstructError.h>
+#include <photk/ShapeFromShading.h>
+using namespace photometry;
 
 #define horBlockSize 8 //8 //4
 #define verBlockSize 8 //8 //4
@@ -319,7 +319,7 @@ ComputeBlockJacobianTiles(ImageViewBase<ViewT1> const& overlapImage, GeoReferenc
 }
 
 //call function for the update of the height map. main call function for shape from shading - from multiple images
-void vw::photometry::UpdateHeightMapTiles(std::string DEMTileFile,
+void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
                                           std::string albedoTileFile,
                                           std::string sfsTileFile,
                                           std::vector<ModelParams> & overlapImgParams,
@@ -822,7 +822,7 @@ ComputeBlockJacobianOverlap(ImageViewBase<ViewT1> const& inputImage, GeoReferenc
 
 
 //call function for the update of the height map. main call function for shape from shading - from multiple images
-void vw::photometry::UpdateHeightMap(ModelParams inputImgParams, std::vector<ModelParams> overlapImgParams, GlobalParams globalParams)
+void photometry::UpdateHeightMap(ModelParams inputImgParams, std::vector<ModelParams> overlapImgParams, GlobalParams globalParams)
 {
 
   std::string inputImgFilename = inputImgParams.inputFilename;//the original DRG

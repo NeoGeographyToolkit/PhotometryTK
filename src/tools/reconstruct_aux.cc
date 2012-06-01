@@ -39,7 +39,7 @@ using namespace std;
 using namespace vw::camera;
 using namespace vw::cartography;
 using namespace vw::math;
-using namespace vw::photometry;
+using namespace photometry;
 using namespace vw;
 
 #include <asp/Core/Macros.h>

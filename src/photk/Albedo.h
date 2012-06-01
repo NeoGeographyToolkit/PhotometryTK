@@ -12,9 +12,8 @@
 
 #include <string>
 #include <vector>
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
   //image mosaic functions
@@ -77,6 +76,6 @@ namespace photometry {
                           std::vector<ModelParams> overlap_img_params,
                           GlobalParams globalParams);
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_ALBEDO_H__

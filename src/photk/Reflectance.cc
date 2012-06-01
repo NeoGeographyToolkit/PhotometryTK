@@ -25,21 +25,21 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/Reflectance.h>
-#include <vw/Photometry/ShapeFromShading.h>
-#include <vw/Photometry/Shape.h>
-#include <vw/Photometry/Albedo.h>
-#include <vw/Photometry/Exposure.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Misc.h>
-#include <vw/Photometry/Weights.h>
-using namespace vw::photometry;
+#include <photk/Reflectance.h>
+#include <photk/ShapeFromShading.h>
+#include <photk/Shape.h>
+#include <photk/Albedo.h>
+#include <photk/Exposure.h>
+#include <photk/Reconstruct.h>
+#include <photk/Misc.h>
+#include <photk/Weights.h>
+using namespace photometry;
 
 //generates the normal of a point p1 from the 3D coordinates of p1, p2, p3
 //this function is currently buggy. Needs to be fixed and this will replace
 //computeNormalFrom3DPoints
 Vector3
-vw::photometry::computeNormalFrom3DPointsGeneral(Vector3 p1,
+photometry::computeNormalFrom3DPointsGeneral(Vector3 p1,
                                                  Vector3 p2,
                                                  Vector3 p3) {
   return -normalize(cross_prod(p2-p1,p3-p1));
@@ -50,7 +50,7 @@ vw::photometry::computeNormalFrom3DPointsGeneral(Vector3 p1,
 //this function will be grandfathered
 //author Ara Nefian
 Vector3
-vw::photometry::computeNormalFrom3DPoints(Vector3 p1, Vector3 p2,
+photometry::computeNormalFrom3DPoints(Vector3 p1, Vector3 p2,
                                           Vector3 p3) {
   Vector3 normal;
 
@@ -93,7 +93,7 @@ Vector3 get_normal(Vector2 lon_lat){
 // some_text/AS15-M-0073_some_text -1353012.8795685 151848979.22428 689542.65035626
 // We will use the 11-character string "AS15-M-0073" as a unique identifier.
 void
-vw::photometry::ReadSunOrSpacecraftPosition(std::string const& filename,             // Input
+photometry::ReadSunOrSpacecraftPosition(std::string const& filename,             // Input
                                             std::map<std::string, Vector3> & records // Output
                                             ){
 
@@ -173,7 +173,7 @@ float computeReflectance(Vector3 sunPos, Vector2 lon_lat)
 //Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
 //author Ara Nefian
 float
-vw::photometry::computeLambertianReflectanceFromNormal(Vector3 sunPos,
+photometry::computeLambertianReflectanceFromNormal(Vector3 sunPos,
                                                        Vector3 xyz,
                                                        Vector3 normal) {
   float reflectance;
@@ -194,7 +194,7 @@ vw::photometry::computeLambertianReflectanceFromNormal(Vector3 sunPos,
 //Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
 //author Ara Nefian
 float
-vw::photometry::computeReflectanceFromNormal(Vector3 /*sunPos*/,
+photometry::computeReflectanceFromNormal(Vector3 /*sunPos*/,
                                              Vector3 /*xyz*/,
                                              Vector3 /*normal*/) {
   float reflectance;
@@ -208,7 +208,7 @@ vw::photometry::computeReflectanceFromNormal(Vector3 /*sunPos*/,
 //Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
 //author Ara Nefian
 float
-vw::photometry::computeLunarLambertianReflectanceFromNormalOld(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,  Vector3 normal, float B_0, float L) {
+photometry::computeLunarLambertianReflectanceFromNormalOld(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,  Vector3 normal, float B_0, float L) {
   float reflectance;
 
   //compute /mu_0 = cosine of the angle between the light direction and the surface normal.
@@ -226,7 +226,7 @@ vw::photometry::computeLunarLambertianReflectanceFromNormalOld(Vector3 sunPos, V
 }
 
 float
-vw::photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,
+photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,
                                                             Vector3 normal, float phaseCoeffA1, float phaseCoeffA2,
                                                             float & alpha // output
                                                             ) {
@@ -314,7 +314,7 @@ vw::photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vect
 }
 
 float
-vw::photometry::ComputeReflectance(Vector3 normal, Vector3 xyz,
+photometry::ComputeReflectance(Vector3 normal, Vector3 xyz,
                                    ModelParams const& input_img_params,
                                    GlobalParams const& globalParams,
                                    float & phaseAngle // output
@@ -348,7 +348,7 @@ vw::photometry::ComputeReflectance(Vector3 normal, Vector3 xyz,
 
 }
 
-void vw::photometry::computeXYZandSurfaceNormal(ImageView<PixelGray<float> > const& DEMTile,
+void photometry::computeXYZandSurfaceNormal(ImageView<PixelGray<float> > const& DEMTile,
                                                 cartography::GeoReference const& DEMGeo,
                                                 float noDEMDataValue,
                                                 ImageView<Vector3> & dem_xyz,
@@ -401,7 +401,7 @@ void vw::photometry::computeXYZandSurfaceNormal(ImageView<PixelGray<float> > con
   return;
 }
 
-void vw::photometry::computeReflectanceAux(ImageView<Vector3> const& dem_xyz,
+void photometry::computeReflectanceAux(ImageView<Vector3> const& dem_xyz,
                                            ImageView<Vector3> const& surface_normal,
                                            ModelParams const& input_img_params,
                                            GlobalParams const& globalParams,
@@ -433,7 +433,7 @@ void vw::photometry::computeReflectanceAux(ImageView<Vector3> const& dem_xyz,
   return;
 }
 
-float vw::photometry::computeImageReflectanceNoWrite(ModelParams const& input_img_params,
+float photometry::computeImageReflectanceNoWrite(ModelParams const& input_img_params,
                                                      GlobalParams const& globalParams,
                                                      ImageView<PixelMask<PixelGray<float> > >& output_img) {
   
@@ -528,7 +528,7 @@ float vw::photometry::computeImageReflectanceNoWrite(ModelParams const& input_im
   return avg_reflectance;
 }
 
-float vw::photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
+float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
                                  std::vector<ImageRecord> & albedoTiles,
                                  std::vector<ImageRecord> & weightsSumTiles,
                                  std::vector<int> & overlap,
@@ -642,7 +642,7 @@ float vw::photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
       // needed only temporarily. They take a lot of memory being
       // images of vectors.
       ImageView<Vector3> dem_xyz, surface_normal;
-      vw::photometry::computeXYZandSurfaceNormal(DEMTile, DEMGeo, noDEMDataValue,
+      photometry::computeXYZandSurfaceNormal(DEMTile, DEMGeo, noDEMDataValue,
                                                  dem_xyz, surface_normal
                                                  );
       bool savePhaseAngle = false;
@@ -777,7 +777,7 @@ float vw::photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
 
 //computes a reflectance image
 //author: Ara Nefian
-float vw::photometry::computeImageReflectance(ModelParams const& input_img_params,
+float photometry::computeImageReflectance(ModelParams const& input_img_params,
                                               GlobalParams const& globalParams) {
   std::string input_img_file = input_img_params.inputFilename;
   std::string output_img_file = input_img_params.reliefFilename;;
@@ -806,7 +806,7 @@ float vw::photometry::computeImageReflectance(ModelParams const& input_img_param
 
 //computes a reflectance image
 //author: Ara Nefian
-float vw::photometry::computeImageReflectance(ModelParams const& input_img_params,
+float photometry::computeImageReflectance(ModelParams const& input_img_params,
                                               ModelParams const& overlap_img_params,
                                               GlobalParams const& globalParams) {
   int l, k;

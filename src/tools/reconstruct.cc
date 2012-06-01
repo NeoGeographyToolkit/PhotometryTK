@@ -110,12 +110,12 @@ namespace fs = boost::filesystem;
 #include <vw/FileIO.h>
 #include <vw/Cartography.h>
 #include <vw/Math.h>
-#include <vw/Photometry.h>
+#include <photk/Photometry.h>
 
 using namespace vw;
 using namespace vw::math;
 using namespace vw::cartography;
-using namespace vw::photometry;
+using namespace photometry;
 
 
 int main( int argc, char *argv[] ) {

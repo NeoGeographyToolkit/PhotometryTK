@@ -17,9 +17,8 @@
 #endif
 
 #include <string>
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
   void ComputeSaveShadowMap( ModelParams input_img_params,
@@ -28,6 +27,6 @@ namespace photometry {
                   std::string output_img_file,
                   std::string shadow_file);
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_SHADOW_H__

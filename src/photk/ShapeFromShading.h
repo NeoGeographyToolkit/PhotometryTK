@@ -12,9 +12,8 @@
 
 #include <vw/Image/ImageView.h>
 #include <vw/Math/Vector.h>
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
   void UpdateHeightMapTiles(std::string DEMTileFile,
@@ -25,16 +24,16 @@ namespace photometry {
                             );
 
   // Does conjugate gradient descent on the DEM, keeping all else fixed.
-  void optimize_conjugate_gradient(ImageView<PixelGray<double> > *image_predicted,
-                                   ImageView<PixelGray<double> > *image,
-                                   ImageView<PixelGray<double> > *dem,
-                                   ImageView<PixelGray<double> > *init_dem,
-                                   ImageView<PixelGray<double> > *albedo,
-                                   Vector3 *light_direction);
+  void optimize_conjugate_gradient(vw::ImageView<vw::PixelGray<double> > *image_predicted,
+                                   vw::ImageView<vw::PixelGray<double> > *image,
+                                   vw::ImageView<vw::PixelGray<double> > *dem,
+                                   vw::ImageView<vw::PixelGray<double> > *init_dem,
+                                   vw::ImageView<vw::PixelGray<double> > *albedo,
+                                   vw::Vector3 *light_direction);
 
   // Old code, using images, not tiles
   void UpdateHeightMap(ModelParams input_img_params, std::vector<ModelParams> overlap_img_params, GlobalParams globalParams);
   
-}} //end vw::photometry
+} //end photometry
 
 #endif//__VW_PHOTOMETRY_SHAPE_FROM_SHADING_H__

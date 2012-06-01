@@ -13,11 +13,10 @@
 #include <string>
 #include <vector>
 #include <vw/Math/Vector.h>
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
-}} // vw::photometry
+} // photometry
 
 #endif//__VW_PHOTOMETRY_CAMRES_H__

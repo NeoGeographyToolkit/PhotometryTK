@@ -21,9 +21,9 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Camres.h>
-#include <vw/Photometry/Misc.h>
-using namespace vw::photometry;
+#include <photk/Reconstruct.h>
+#include <photk/Camres.h>
+#include <photk/Misc.h>
+using namespace photometry;
 
 

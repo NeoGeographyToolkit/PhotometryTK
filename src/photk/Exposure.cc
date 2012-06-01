@@ -16,13 +16,13 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/Reflectance.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/ReconstructError.h>
-#include <vw/Photometry/Misc.h>
-#include <vw/Photometry/Weights.h>
-#include <vw/Photometry/Exposure.h>
-using namespace vw::photometry;
+#include <photk/Reflectance.h>
+#include <photk/Reconstruct.h>
+#include <photk/ReconstructError.h>
+#include <photk/Misc.h>
+#include <photk/Weights.h>
+#include <photk/Exposure.h>
+using namespace photometry;
 
 //determines the best guess for the exposure time from the reflectance model
 //forces unit exposure time for the first frame
@@ -65,7 +65,7 @@ float ComputeGradient_Exposure(float T, float albedo) {
 /*
 //these functions will be removed - START
 //void AppendExposureInfoToFile(string exposureFilename, string currInputFile, ModelParams currModelParams)
-void vw::photometry::AppendExposureInfoToFile(std::string exposureFilename,
+void photometry::AppendExposureInfoToFile(std::string exposureFilename,
                                               ModelParams currModelParams) {
   FILE *fp;
   std::string currInputFile = currModelParams.inputFilename;
@@ -78,7 +78,7 @@ void vw::photometry::AppendExposureInfoToFile(std::string exposureFilename,
 }
 
 std::vector<float>
-vw::photometry::ReadExposureInfoFile(std::string exposureFilename,
+photometry::ReadExposureInfoFile(std::string exposureFilename,
                                      int numEntries) {
   FILE *fp;
   std::vector<float> exposureTimeVector(numEntries);
@@ -99,7 +99,7 @@ vw::photometry::ReadExposureInfoFile(std::string exposureFilename,
 }
 */
 
-void vw::photometry::AppendExposureInfoToFile(ModelParams modelParams)
+void photometry::AppendExposureInfoToFile(ModelParams modelParams)
 {
   // Append the current exposure to the file.
   // This way when we do multiple albedo iterations we keep all the
@@ -111,7 +111,7 @@ void vw::photometry::AppendExposureInfoToFile(ModelParams modelParams)
   fclose(fp);
 }
 
-void vw::photometry::ReadExposureInfoFromFile(ModelParams *modelParams)
+void photometry::ReadExposureInfoFromFile(ModelParams *modelParams)
 {
   // Read the latest exposure from the file
 
@@ -133,7 +133,7 @@ void vw::photometry::ReadExposureInfoFromFile(ModelParams *modelParams)
 
 
 //computes the exposure time for image mosaicing (no reflectance model)
-void vw::photometry::ComputeExposure(ModelParams *currModelParams,
+void photometry::ComputeExposure(ModelParams *currModelParams,
                                      GlobalParams /*globalParams*/) {
 
   std::string curr_input_file = currModelParams->inputFilename;
@@ -178,7 +178,7 @@ void vw::photometry::ComputeExposure(ModelParams *currModelParams,
   printf("updated exposure time = %f\n", currModelParams->exposureTime);
 }
 
-void vw::photometry::ComputeExposureAlbedo(ModelParams *currModelParams,
+void photometry::ComputeExposureAlbedo(ModelParams *currModelParams,
                                            GlobalParams globalParams) {
 
   std::string curr_input_file = currModelParams->inputFilename;

@@ -13,7 +13,6 @@
 #include <vector>
 #include <string>
 
-namespace vw {
 namespace photometry {
 
 #if 0
@@ -28,6 +27,6 @@ namespace photometry {
 
 #endif
 
-}} // no vw::photometry
+} // no photometry
 
 #endif//__VW_PHOTOMETRY_OUTLIER_H__

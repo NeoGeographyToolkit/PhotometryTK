@@ -20,36 +20,35 @@
 #include <map>
 #include <vw/Math/Vector.h>
 
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
-  Vector3 computeNormalFrom3DPointsGeneral(Vector3 p1, Vector3 p2, Vector3 p3);
-  Vector3 computeNormalFrom3DPoints(Vector3 p1, Vector3 p2, Vector3 p3);
+  vw::Vector3 computeNormalFrom3DPointsGeneral(vw::Vector3 p1, vw::Vector3 p2, vw::Vector3 p3);
+  vw::Vector3 computeNormalFrom3DPoints(vw::Vector3 p1, vw::Vector3 p2, vw::Vector3 p3);
 
   void ReadSunOrSpacecraftPosition(std::string const& filename,             // Input
-                                   std::map<std::string, Vector3> & records // Output
+                                   std::map<std::string, vw::Vector3> & records // Output
                                    );
   
-  float computeReflectanceFromNormal(Vector3 sunPos, Vector3 xyz,  Vector3 normal);
-  float computeLambertianReflectanceFromNormal(Vector3 sunPos,
-                                               Vector3 xyz, Vector3 normal);
-  float computeLunarLambertianReflectanceFromNormalOld(Vector3 sunPos,
-                                                    Vector3 viewerPos,
-                                                    Vector3 xyz,
-                                                    Vector3 normal,
+  float computeReflectanceFromNormal(vw::Vector3 sunPos, vw::Vector3 xyz,  vw::Vector3 normal);
+  float computeLambertianReflectanceFromNormal(vw::Vector3 sunPos,
+                                               vw::Vector3 xyz, vw::Vector3 normal);
+  float computeLunarLambertianReflectanceFromNormalOld(vw::Vector3 sunPos,
+                                                    vw::Vector3 viewerPos,
+                                                    vw::Vector3 xyz,
+                                                    vw::Vector3 normal,
                                                     float B_0, float L);
-  float computeLunarLambertianReflectanceFromNormal(Vector3 sunPos,
-                                                    Vector3 viewPos,
-                                                    Vector3 xyz,
-                                                    Vector3 normal,
+  float computeLunarLambertianReflectanceFromNormal(vw::Vector3 sunPos,
+                                                    vw::Vector3 viewPos,
+                                                    vw::Vector3 xyz,
+                                                    vw::Vector3 normal,
                                                     float phaseCoeffA1, float phaseCoeffA2,
                                                     float & alpha // output, phase angle
                                                     );
   float computeImageReflectance(ModelParams const& input_img_params,
                                 GlobalParams const&  globalParams);
-  float ComputeReflectance(Vector3 normal, Vector3 xyz,
+  float ComputeReflectance(vw::Vector3 normal, vw::Vector3 xyz,
                            ModelParams const& input_img_params,
                            GlobalParams const& globalParams,
                            float & phaseAngle // output
@@ -58,20 +57,20 @@ namespace photometry {
                                 ModelParams const& overlap_img_params,
                                 GlobalParams const& globalParams);
 
-  void computeXYZandSurfaceNormal(ImageView<PixelGray<float> > const& DEMTile,
-                                  cartography::GeoReference const& DEMGeo,
+  void computeXYZandSurfaceNormal(vw::ImageView<vw::PixelGray<float> > const& DEMTile,
+                                  vw::cartography::GeoReference const& DEMGeo,
                                   float noDEMDataValue,
-                                  ImageView<Vector3> & dem_xyz,
-                                  ImageView<Vector3> & surface_normal
+                                  vw::ImageView<vw::Vector3> & dem_xyz,
+                                  vw::ImageView<vw::Vector3> & surface_normal
                                   );
 
-  void computeReflectanceAux(ImageView<Vector3> const& dem_xyz,
-                             ImageView<Vector3> const& surface_normal,
+  void computeReflectanceAux(vw::ImageView<vw::Vector3> const& dem_xyz,
+                             vw::ImageView<vw::Vector3> const& surface_normal,
                              ModelParams const& input_img_params,
                              GlobalParams const& globalParams,
-                             ImageView<PixelMask<PixelGray<float> > >& outputReflectance,
+                             vw::ImageView<vw::PixelMask<vw::PixelGray<float> > >& outputReflectance,
                              bool savePhaseAngle,
-                             ImageView<PixelMask<PixelGray<float> > > & phaseAngle
+                             vw::ImageView<vw::PixelMask<vw::PixelGray<float> > > & phaseAngle
                              );
 
 
@@ -84,8 +83,8 @@ namespace photometry {
   
   float computeImageReflectanceNoWrite(ModelParams const& input_img_params,
                                        GlobalParams const& globalParams,
-                                       ImageView<PixelMask<PixelGray<float> > >& output_img);
+                                       vw::ImageView<vw::PixelMask<vw::PixelGray<float> > >& output_img);
 
-}}
+}
 
 #endif//__VW_PHOTOMETRY_REFLECTANCE_H__

@@ -26,16 +26,16 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/ShapeFromShading.h>
-#include <vw/Photometry/Shape.h>
-#include <vw/Photometry/Albedo.h>
-#include <vw/Photometry/Exposure.h>
-#include <vw/Photometry/Reflectance.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Shadow.h>
-#include <vw/Photometry/Index.h>
-#include <vw/Photometry/Weights.h>
-using namespace vw::photometry;
+#include <photk/ShapeFromShading.h>
+#include <photk/Shape.h>
+#include <photk/Albedo.h>
+#include <photk/Exposure.h>
+#include <photk/Reflectance.h>
+#include <photk/Reconstruct.h>
+#include <photk/Shadow.h>
+#include <photk/Index.h>
+#include <photk/Weights.h>
+using namespace photometry;
 
 
 /*
@@ -120,7 +120,7 @@ float ComputeWeights(Vector2 pix, Vector2 C, float maxDistance)
 }
 */
 
-void vw::photometry::ComputeImageCenterLines(struct ModelParams & modelParams){
+void photometry::ComputeImageCenterLines(struct ModelParams & modelParams){
 
   // Compute the center of the image.
   
@@ -214,7 +214,7 @@ void vw::photometry::ComputeImageCenterLines(struct ModelParams & modelParams){
 }
 
 int*
-vw::photometry::ComputeImageHCenterLine(std::string input_img_file,
+photometry::ComputeImageHCenterLine(std::string input_img_file,
                                        int **r_hMaxDistArray) {
 
     //compute the center of the image
@@ -264,7 +264,7 @@ vw::photometry::ComputeImageHCenterLine(std::string input_img_file,
 
 
 int*
-vw::photometry::ComputeImageVCenterLine(std::string input_img_file,
+photometry::ComputeImageVCenterLine(std::string input_img_file,
                                        int **r_vMaxDistArray) {
 
     //compute the center of the image
@@ -313,7 +313,7 @@ vw::photometry::ComputeImageVCenterLine(std::string input_img_file,
 
 
 int*
-vw::photometry::ComputeDEMHCenterLine(std::string input_DEM_file,int noDataDEMVal,
+photometry::ComputeDEMHCenterLine(std::string input_DEM_file,int noDataDEMVal,
                                      int **r_hMaxDistArray) {
 
     //compute the center of the image
@@ -358,7 +358,7 @@ vw::photometry::ComputeDEMHCenterLine(std::string input_DEM_file,int noDataDEMVa
 }
 
 int*
-vw::photometry::ComputeDEMVCenterLine(std::string input_DEM_file,int noDataDEMVal,
+photometry::ComputeDEMVCenterLine(std::string input_DEM_file,int noDataDEMVal,
                                      int **r_vMaxDistArray) {
 
     //compute the center of the image
@@ -403,7 +403,7 @@ vw::photometry::ComputeDEMVCenterLine(std::string input_DEM_file,int noDataDEMVa
 }
 
 float
-vw::photometry::ComputeLineWeightsH(Vector2 const& pix,
+photometry::ComputeLineWeightsH(Vector2 const& pix,
                                     std::vector<int> const& hCenterLine, std::vector<int> const& hMaxDistArray){
 
   // We round below, to avoid issues when we are within numerical value
@@ -428,7 +428,7 @@ vw::photometry::ComputeLineWeightsH(Vector2 const& pix,
 }
 
 float
-vw::photometry::ComputeLineWeightsV(Vector2 const& pix,
+photometry::ComputeLineWeightsV(Vector2 const& pix,
                                     std::vector<int> const& vCenterLine, std::vector<int> const& vMaxDistArray){
 
   // See the notes at ComputeLineWeightsH().
@@ -451,7 +451,7 @@ vw::photometry::ComputeLineWeightsV(Vector2 const& pix,
 }
 
 float
-vw::photometry::ComputeLineWeightsHV(Vector2 const& pix, struct ModelParams const& modelParams)
+photometry::ComputeLineWeightsHV(Vector2 const& pix, struct ModelParams const& modelParams)
 {
   float weightH = ComputeLineWeightsH(pix, modelParams.hCenterLine, modelParams.hMaxDistArray);
   float weightV = ComputeLineWeightsV(pix, modelParams.vCenterLine, modelParams.vMaxDistArray);
@@ -462,7 +462,7 @@ vw::photometry::ComputeLineWeightsHV(Vector2 const& pix, struct ModelParams cons
 
 // Saves weights to file.
 void 
-vw::photometry::SaveWeightsParamsToFile(bool useTiles, struct ModelParams const& modelParams)
+photometry::SaveWeightsParamsToFile(bool useTiles, struct ModelParams const& modelParams)
 {
 
   FILE *fp;
@@ -521,7 +521,7 @@ vw::photometry::SaveWeightsParamsToFile(bool useTiles, struct ModelParams const&
 }
 
 void 
-vw::photometry::ReadWeightsParamsFromFile(bool useTiles, struct ModelParams *modelParams)
+photometry::ReadWeightsParamsFromFile(bool useTiles, struct ModelParams *modelParams)
 {
   FILE *fp;
 

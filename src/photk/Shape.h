@@ -18,9 +18,8 @@
 #include <vw/Image/MaskViews.h>
 #include <vw/FileIO.h>
 
-#include <vw/Photometry/Reconstruct.h>
+#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
   void InitDEM(ModelParams input_img_params,
@@ -36,9 +35,9 @@ namespace photometry {
                       ModelParams currModelParams,
                       ModelParams prevModelParams );
 
-  Vector3 computeNormalFrom3DPoints(Vector3 p1, Vector3 p2, Vector3 p3);
-  float computeReflectanceFromNormal(Vector3 sunPos, Vector3 xyz, Vector3 normal);
+  vw::Vector3 computeNormalFrom3DPoints(vw::Vector3 p1, vw::Vector3 p2, vw::Vector3 p3);
+  float computeReflectanceFromNormal(vw::Vector3 sunPos, vw::Vector3 xyz, vw::Vector3 normal);
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_SHAPE_H__

@@ -36,7 +36,6 @@ struct ImageRecord {
 };
  
 
-namespace vw {
 namespace photometry {
 
   typedef struct GlobalParams{
@@ -50,7 +49,7 @@ namespace photometry {
     float tileSize;        // in degrees
     int useTiles;          // 1 or 0 
     int pixelPadding;      // in pixels
-    Vector4 simulationBox; // lonMin, lonMax, latMin, latMax (If not present the entire albedo will be simulated)
+    vw::Vector4 simulationBox; // lonMin, lonMax, latMin, latMax (If not present the entire albedo will be simulated)
     
     int reflectanceType;
     int saveReflectance;
@@ -91,9 +90,9 @@ namespace photometry {
 
     float   exposureTime;
 
-    Vector2 cameraParams; //currently not used
-    Vector3 sunPosition; //relative to the center of the Moon
-    Vector3 spacecraftPosition;//relative to the center of the planet
+    vw::Vector2 cameraParams; //currently not used
+    vw::Vector3 sunPosition; //relative to the center of the Moon
+    vw::Vector3 spacecraftPosition;//relative to the center of the planet
 
     std::vector<int> hCenterLine;
     std::vector<int> hMaxDistArray;
@@ -105,7 +104,7 @@ namespace photometry {
     int *vCenterLineDEM;
     int *vMaxDistArrayDEM;
     
-    Vector4 corners; // cached bounds to quickly calculate overlap
+    vw::Vector4 corners; // cached bounds to quickly calculate overlap
     
     /*
     vector<int> hCenterLine;
@@ -151,6 +150,6 @@ namespace photometry {
   #define DYNAMIC_RANGE  256
   // Written by Taemin Kim - END
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_RECONSTRUCT_H__

@@ -31,13 +31,13 @@ using namespace vw;
 using namespace vw::cartography;
 using namespace std;
 
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Misc.h>
-#include <vw/Photometry/Shape.h>
-using namespace vw::photometry;
+#include <photk/Reconstruct.h>
+#include <photk/Misc.h>
+#include <photk/Shape.h>
+using namespace photometry;
 
 // Upsample a geo-referenced tiff image. Care is taken to deal properly with invalid pixels.
-void vw::photometry::upsample_uint8_image(std::string output_file, std::string input_file, int upsampleFactor){
+void photometry::upsample_uint8_image(std::string output_file, std::string input_file, int upsampleFactor){
 
   // Note: This is function is not quite correct. I noticed that the
   // original and upsampled image are not exactly on top of each
@@ -357,7 +357,7 @@ std::vector<std::string> parse_command_arguments(int argc, char *argv[] ) {
   return input_files;
 }
 
-void vw::photometry::getTileCornersWithoutPadding(// Inputs
+void photometry::getTileCornersWithoutPadding(// Inputs
                                                   int numCols, int numRows,
                                                   cartography::GeoReference const& geoRef,
                                                   double tileSize, int pixelPadding,
@@ -387,7 +387,7 @@ void vw::photometry::getTileCornersWithoutPadding(// Inputs
 }
   
 
-void vw::photometry::applyPaddingToTileCorners(// Inputs
+void photometry::applyPaddingToTileCorners(// Inputs
                                                cartography::GeoReference const& geoRef,
                                                int pixelPadding,
                                                double min_x, double max_x,
@@ -416,7 +416,7 @@ void vw::photometry::applyPaddingToTileCorners(// Inputs
   return;
 }
 
-void vw::photometry::readDEMTilesIntersectingBox(// Inputs
+void photometry::readDEMTilesIntersectingBox(// Inputs
                                                  double noDEMDataValue,
                                                  Vector2 boxNW, Vector2 boxSE,
                                                  std::vector<std::string> const& DEMTiles,
@@ -522,7 +522,7 @@ void vw::photometry::readDEMTilesIntersectingBox(// Inputs
   return;
 }
 
-void vw::photometry::listTifsInDir(const std::string & dirName,
+void photometry::listTifsInDir(const std::string & dirName,
                                    std::vector<std::string> & tifsInDir
                                    ){
   
@@ -549,7 +549,7 @@ void vw::photometry::listTifsInDir(const std::string & dirName,
   return;
 }
 
-void vw::photometry::writeSunAndSpacecraftPosition(std::string prefix,
+void photometry::writeSunAndSpacecraftPosition(std::string prefix,
                                                    std::string sunFile, std::string spacecraftFile,
                                                    Vector3 sunPosition, Vector3 spacecraftPosition){
 
@@ -577,7 +577,7 @@ void vw::photometry::writeSunAndSpacecraftPosition(std::string prefix,
   return;
 }
 
-std::string vw::photometry::getFirstElevenCharsFromFileName(std::string fileName){
+std::string photometry::getFirstElevenCharsFromFileName(std::string fileName){
 
   // Out of path/to/AS15-M-1723_1724-DEM.tif extract the 11 characters
   // "AS15-M-1723".
@@ -587,7 +587,7 @@ std::string vw::photometry::getFirstElevenCharsFromFileName(std::string fileName
   return fileName.substr(0, 11);
 }
 
-void vw::photometry::indexFilesByKey(std::string dirName, std::map<std::string, std::string> & index){
+void photometry::indexFilesByKey(std::string dirName, std::map<std::string, std::string> & index){
 
   // Create the map: AS15-M-1723 -> path/to/AS15-M-1723_1724-DEM.tif
   // for all the files in the given directory.
@@ -610,7 +610,7 @@ void vw::photometry::indexFilesByKey(std::string dirName, std::map<std::string, 
   return;
 }
 
-void vw::photometry::enforceUint8Img(std::string imgName){
+void photometry::enforceUint8Img(std::string imgName){
 
   ImageFormat img_fmt;
   {
@@ -625,7 +625,7 @@ void vw::photometry::enforceUint8Img(std::string imgName){
   return;
 }
 
-bool vw::photometry::readNoDEMDataVal(std::string DEMFile, float & noDEMDataValue){
+bool photometry::readNoDEMDataVal(std::string DEMFile, float & noDEMDataValue){
 
   boost::scoped_ptr<SrcImageResource> rsrc( DiskImageResource::open(DEMFile) );
   if ( rsrc->has_nodata_read() ){
@@ -637,7 +637,7 @@ bool vw::photometry::readNoDEMDataVal(std::string DEMFile, float & noDEMDataValu
 }
 
 
-void vw::photometry::maskPixels(std::string imgFile, std::string maskFile, double shadowThresh, std::string outDir){
+void photometry::maskPixels(std::string imgFile, std::string maskFile, double shadowThresh, std::string outDir){
   
   // Any pixels in imgFile, which are below shadowThresh in maskFile, will be set to black.
   
@@ -665,7 +665,7 @@ void vw::photometry::maskPixels(std::string imgFile, std::string maskFile, doubl
   return;
 }
 
-void vw::photometry::ReadPhaseCoeffsFromFile(std::string phaseDir, GlobalParams& settings)
+void photometry::ReadPhaseCoeffsFromFile(std::string phaseDir, GlobalParams& settings)
 {
 
   // Read the latest values of the phase coefficients from the file
@@ -685,7 +685,7 @@ void vw::photometry::ReadPhaseCoeffsFromFile(std::string phaseDir, GlobalParams&
   return;
 }
 
-void vw::photometry::AppendPhaseCoeffsToFile(const GlobalParams& settings){
+void photometry::AppendPhaseCoeffsToFile(const GlobalParams& settings){
 
   // Append the current phase coefficients to the file. This way when
   // we do multiple albedo iterations we keep all the current and
@@ -703,7 +703,7 @@ void vw::photometry::AppendPhaseCoeffsToFile(const GlobalParams& settings){
   fclose(fp);
 }
 
-float vw::photometry::getShadowThresh(const GlobalParams& settings, float exposureRefl){
+float photometry::getShadowThresh(const GlobalParams& settings, float exposureRefl){
 
   float t = -1.0; // shadow threshold
   if (settings.shadowRemovalType == CONSTANT_THRESHOLD_SHADOW_REMOVAL)
@@ -715,7 +715,7 @@ float vw::photometry::getShadowThresh(const GlobalParams& settings, float exposu
   return t;
 }
 
-void vw::photometry::resampleImage(std::string initFilename, std::string outputFilename, int factor){
+void photometry::resampleImage(std::string initFilename, std::string outputFilename, int factor){
 
   DiskImageView<float>  initImg(initFilename);
   GeoReference initGeo;
@@ -772,7 +772,7 @@ void vw::photometry::resampleImage(std::string initFilename, std::string outputF
 
 }  
 
-bool vw::photometry::boxesOverlap(const Vector4 & box1Corners, const Vector4 & box2Corners){
+bool photometry::boxesOverlap(const Vector4 & box1Corners, const Vector4 & box2Corners){
 
   int lonOverlap = 0;
   int latOverlap = 0; 
@@ -804,7 +804,7 @@ bool vw::photometry::boxesOverlap(const Vector4 & box1Corners, const Vector4 & b
 }
       
 
-Vector4 vw::photometry::ComputeGeoBoundary(cartography::GeoReference Geo, int width, int height){
+Vector4 photometry::ComputeGeoBoundary(cartography::GeoReference Geo, int width, int height){
 
   // Get the lonlat coordinates of the four pixels corners of the image.
   
@@ -840,7 +840,7 @@ Vector4 vw::photometry::ComputeGeoBoundary(cartography::GeoReference Geo, int wi
   return corners;
 }
 
-Vector4 vw::photometry::getImageCorners(std::string imageFile){
+Vector4 photometry::getImageCorners(std::string imageFile){
 
   // Get the four corners of an image, that is the lon-lat coordinates of
   // the pixels in the image corners.
@@ -856,7 +856,7 @@ Vector4 vw::photometry::getImageCorners(std::string imageFile){
   return imageCorners;
 }
 
-void vw::photometry::listTifsInDirOverlappingWithBox(const std::string & dirName,
+void photometry::listTifsInDirOverlappingWithBox(const std::string & dirName,
                                                      Vector4 & boxCorners,
                                                      const std::string & outputListName){
   
@@ -883,7 +883,7 @@ void vw::photometry::listTifsInDirOverlappingWithBox(const std::string & dirName
   return;
 }
 
-void vw::photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
+void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
                                                          std::string imageFile, Vector4 const& simulationBox,
                                                          std::vector<ImageRecord> const& drgRecords,
                                                          std::string blankTilesList,  std::string blankTilesDir,
@@ -1007,7 +1007,7 @@ void vw::photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pi
   
 }
 
-std::vector<int> vw::photometry::GetInputIndices( std::vector<std::string> inputFiles, std::vector<std::string> DRGFiles){
+std::vector<int> photometry::GetInputIndices( std::vector<std::string> inputFiles, std::vector<std::string> DRGFiles){
 
   std::vector<int>  inputIndices;
   for (int j = 0; j < (int)inputFiles.size(); j++){
@@ -1023,7 +1023,7 @@ std::vector<int> vw::photometry::GetInputIndices( std::vector<std::string> input
 
 //this function determines the image overlap for the general case
 //it takes into consideration any set of overlapping images.
-std::vector<int> vw::photometry::makeOverlapList(const std::vector<ModelParams>& drgFiles,
+std::vector<int> photometry::makeOverlapList(const std::vector<ModelParams>& drgFiles,
                                                  const std::string& currFile) {
 
   std::vector<int> overlapIndices; overlapIndices.clear();
@@ -1058,7 +1058,7 @@ std::vector<int> vw::photometry::makeOverlapList(const std::vector<ModelParams>&
   return overlapIndices;
 }
 
-std::vector<int> vw::photometry::makeOverlapList(const std::vector<ImageRecord>& drgRecords,
+std::vector<int> photometry::makeOverlapList(const std::vector<ImageRecord>& drgRecords,
                                                  const std::string& currFile) {
 
   // To do: Merge this function with the one above it and together with other
@@ -1078,7 +1078,7 @@ std::vector<int> vw::photometry::makeOverlapList(const std::vector<ImageRecord>&
   return overlapIndices;
 }
 
-std::vector<std::vector<int> > vw::photometry::makeOverlapList(const std::vector<std::string>& inputFiles,
+std::vector<std::vector<int> > photometry::makeOverlapList(const std::vector<std::string>& inputFiles,
                                                                const std::vector<ModelParams>& DRGFiles){
   std::vector<std::vector<int> > overlapIndices;
   overlapIndices.resize(inputFiles.size());
@@ -1089,7 +1089,7 @@ std::vector<std::vector<int> > vw::photometry::makeOverlapList(const std::vector
   return overlapIndices;  
 }
 
-void vw::photometry::printOverlapList(std::vector<std::vector<int> > overlapIndices){
+void photometry::printOverlapList(std::vector<std::vector<int> > overlapIndices){
   
   for (int i=0; i < (int)overlapIndices.size(); i++){
     printf("%d: ", i);
@@ -1101,7 +1101,7 @@ void vw::photometry::printOverlapList(std::vector<std::vector<int> > overlapIndi
 }
 
 
-Vector4 vw::photometry::parseSimBox(std::string simulationBoxStr){
+Vector4 photometry::parseSimBox(std::string simulationBoxStr){
 
   // Parse the string "13:49:-12:28" to extract the vector of
   // numbers 13, 49, -12, 28 (lonMin, lonMax, latMin, latMax).
@@ -1141,7 +1141,7 @@ Vector4 vw::photometry::parseSimBox(std::string simulationBoxStr){
   return simulationBox;
 }
 
-void vw::photometry::extractSimBox(char * line, Vector4 & simulationBox){
+void photometry::extractSimBox(char * line, Vector4 & simulationBox){
 
   // Out of the string "SIMULATION_BOX            6 : 10 : -10 : -9 "
   // extract the value  "6 : 10 : -10 : -9", then parse it to extract
@@ -1166,7 +1166,7 @@ void vw::photometry::extractSimBox(char * line, Vector4 & simulationBox){
   return;
 }
 
-int vw::photometry::ReadConfigFile(char *config_filename, struct GlobalParams & settings){
+int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & settings){
 
   ifstream configFile(config_filename);
   if (!configFile.is_open()){
@@ -1372,7 +1372,7 @@ int vw::photometry::ReadConfigFile(char *config_filename, struct GlobalParams & 
   return 0;
 }
 
-void vw::photometry::PrintGlobalParams(GlobalParams& settings){
+void photometry::PrintGlobalParams(GlobalParams& settings){
 
   
   // Files/directories
@@ -1422,7 +1422,7 @@ void vw::photometry::PrintGlobalParams(GlobalParams& settings){
   return;
 }
 
-bool vw::photometry::readImagesFile(std::vector<ImageRecord>& images,
+bool photometry::readImagesFile(std::vector<ImageRecord>& images,
                                     const std::string& imagesListName){
   std::ifstream imagesList(imagesListName.c_str());
   if (!imagesList) {
@@ -1470,7 +1470,7 @@ bool vw::photometry::readImagesFile(std::vector<ImageRecord>& images,
   return true;
 }
 
-void vw::photometry::list_DRG_in_box_and_all_DEM(bool useTiles, bool useReflectance,
+void photometry::list_DRG_in_box_and_all_DEM(bool useTiles, bool useReflectance,
                                                  std::string allDRGIndex, std::string allDEMIndex,
                                                  Vector4 simulationBox, 
                                                  std::string DRGDir,  std::string DEMDir, 

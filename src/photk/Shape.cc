@@ -18,11 +18,11 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/Shape.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/Weights.h>
-#include <vw/Photometry/Misc.h>
-using namespace vw::photometry;
+#include <photk/Shape.h>
+#include <photk/Reconstruct.h>
+#include <photk/Weights.h>
+#include <photk/Misc.h>
+using namespace photometry;
 
 float ComputeGradient_DEM(float /*intensity*/, float T,
                           float albedo, Vector3 s,
@@ -45,7 +45,7 @@ float ComputeError_DEM(float intensity, float T, float albedo,
 }
 
 //initializes the DEM file by getting the average DEM values in the overlapping areas of consecutive DEM files.
-void vw::photometry::InitDEM( ModelParams input_img_params,
+void photometry::InitDEM( ModelParams input_img_params,
                               std::vector<ModelParams> overlap_img_params,
                               GlobalParams globalParams) {
 
@@ -190,7 +190,7 @@ void vw::photometry::InitDEM( ModelParams input_img_params,
 }
 
 //initializes the DEM tile
-void vw::photometry::InitMeanDEMTile(std::string blankTileFile,
+void photometry::InitMeanDEMTile(std::string blankTileFile,
                                      std::string meanDEMTileFile,
                                      std::vector<ImageRecord> & DEMImages,
                                      std::vector<int> & overlap,
@@ -405,7 +405,7 @@ void DetectDEMOutliers( std::string input_DEM_file,
 //input_files[i], input_files[i-1], output_files[i], output_files[i-1]
 //writes the albedo of the current image in the area of overlap with the previous mage
 //writes the previous image in the area of overal with the current image
-void vw::photometry::ComputeSaveDEM(std::string curr_input_file,
+void photometry::ComputeSaveDEM(std::string curr_input_file,
                                     std::string prev_input_file,
                                     std::string prior_DEM_file,
                                     std::string output_DEM_file,

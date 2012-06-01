@@ -12,9 +12,8 @@
 
 #include <string>
 #include <vector>
-//#include <vw/Photometry/Reconstruct.h>
+//#include <photk/Reconstruct.h>
 
-namespace vw {
 namespace photometry {
 
   float ComputeError(float intensity, float T,
@@ -27,6 +26,6 @@ namespace photometry {
                                      GlobalParams globalParams,
                                      float *avgError, int *totalNumSamples);
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_RECONSTRUCTERROR_H__

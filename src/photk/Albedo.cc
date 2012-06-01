@@ -16,14 +16,14 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/Albedo.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/ReconstructError.h>
-#include <vw/Photometry/Reflectance.h>
-#include <vw/Photometry/Weights.h>
-#include <vw/Photometry/Misc.h>
+#include <photk/Albedo.h>
+#include <photk/Reconstruct.h>
+#include <photk/ReconstructError.h>
+#include <photk/Reflectance.h>
+#include <photk/Weights.h>
+#include <photk/Misc.h>
 
-using namespace vw::photometry;
+using namespace photometry;
 using namespace std;
 
 float ComputeGradient_Albedo(float T, float reflectance) {
@@ -33,7 +33,7 @@ float ComputeGradient_Albedo(float T, float reflectance) {
   return grad;
 }
 
-void vw::photometry::InitImageMosaic(ModelParams input_img_params,
+void photometry::InitImageMosaic(ModelParams input_img_params,
                                      //std::vector<std::string> overlap_img_files,
                                      std::vector<ModelParams> overlap_img_params,
                                      GlobalParams globalParams) {
@@ -183,7 +183,7 @@ void vw::photometry::InitImageMosaic(ModelParams input_img_params,
 
 }
 
-void vw::photometry::InitImageMosaicByBlocks(ModelParams input_img_params,
+void photometry::InitImageMosaicByBlocks(ModelParams input_img_params,
                                              std::vector<ModelParams> overlap_img_params,
                                              GlobalParams globalParams) {
 
@@ -366,7 +366,7 @@ void vw::photometry::InitImageMosaicByBlocks(ModelParams input_img_params,
 
 //updates the image mosaic
 //author: Ara Nefian
-void vw::photometry::UpdateImageMosaic(ModelParams input_img_params,
+void photometry::UpdateImageMosaic(ModelParams input_img_params,
                                        std::vector<ModelParams> overlap_img_params,
                                        GlobalParams globalParams) {
     int i, l, k;
@@ -565,7 +565,7 @@ namespace {
 //-------------------------------------------------------------------------------
 
 double
-vw::photometry::actOnTile(bool isLastIter, bool computeErrors,
+photometry::actOnTile(bool isLastIter, bool computeErrors,
                           std::string blankTileFile,
                           std::string DEMTileFile,   std::string albedoTileFile,
                           std::string errorTileFile, std::string weightsSumFile,
@@ -633,7 +633,7 @@ vw::photometry::actOnTile(bool isLastIter, bool computeErrors,
       exit(1);
     }
       
-    vw::photometry::computeXYZandSurfaceNormal(DEMTile.impl(), DEMGeo, noDEMDataValue,
+    photometry::computeXYZandSurfaceNormal(DEMTile.impl(), DEMGeo, noDEMDataValue,
                                                dem_xyz, surface_normal
                                                );
   }
@@ -1027,7 +1027,7 @@ vw::photometry::actOnTile(bool isLastIter, bool computeErrors,
   return costFunVal;
 }
 
-void vw::photometry::AppendCostFunToFile(double costFunVal, std::string fileName)
+void photometry::AppendCostFunToFile(double costFunVal, std::string fileName)
 {
   // Append the current cost function to the file.
   FILE *fp;
@@ -1041,7 +1041,7 @@ void vw::photometry::AppendCostFunToFile(double costFunVal, std::string fileName
 //initializes the albedo mosaic
 //TO DO: build the version that does the blockwise processing to deal with large scale images
 void
-vw::photometry::InitAlbedoMosaic(ModelParams input_img_params,
+photometry::InitAlbedoMosaic(ModelParams input_img_params,
                                  std::vector<ModelParams> overlap_img_params,
                                  GlobalParams globalParams) {
     
@@ -1288,7 +1288,7 @@ vw::photometry::InitAlbedoMosaic(ModelParams input_img_params,
 //writes the current albedo of the current image in the area of overlap with the previous mage
 //writes the previous albedo in the area of overlap with the current image
 void
-vw::photometry::UpdateAlbedoMosaic(ModelParams input_img_params,
+photometry::UpdateAlbedoMosaic(ModelParams input_img_params,
                                    std::vector<ModelParams> overlap_img_params,
                                    GlobalParams globalParams) {
     int i, l, k;

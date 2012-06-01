@@ -13,11 +13,10 @@
 #include <vector>
 #include <string>
 
-namespace vw {
 namespace photometry {
 
 
 
-}} // end vw::photometry
+} // end photometry
 
 #endif//__VW_PHOTOMETRY_INDEX_H__

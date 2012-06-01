@@ -17,17 +17,17 @@
 using namespace vw;
 using namespace vw::cartography;
 
-#include <vw/Photometry/Albedo.h>
-#include <vw/Photometry/Reconstruct.h>
-#include <vw/Photometry/ReconstructError.h>
-#include <vw/Photometry/Reflectance.h>
-#include <vw/Photometry/Weights.h>
+#include <photk/Albedo.h>
+#include <photk/Reconstruct.h>
+#include <photk/ReconstructError.h>
+#include <photk/Reflectance.h>
+#include <photk/Weights.h>
 
-using namespace vw::photometry;
+using namespace photometry;
 
 
 float
-vw::photometry::ComputeError(float intensity, float T,
+photometry::ComputeError(float intensity, float T,
     float albedo, float reflectance) {//Vector3 /*xyz*/, Vector3 /*xyz_prior*/) {
 
   float error;
@@ -37,7 +37,7 @@ vw::photometry::ComputeError(float intensity, float T,
 }
 
 void
-vw::photometry::ComputeReconstructionErrorMap(ModelParams input_img_params,
+photometry::ComputeReconstructionErrorMap(ModelParams input_img_params,
     std::vector<ModelParams> overlap_img_params,
     GlobalParams globalParams,
     float *avgError, int *totalNumSamples) {

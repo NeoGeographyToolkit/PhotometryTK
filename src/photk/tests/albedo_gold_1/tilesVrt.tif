@@ -1,0 +1,37 @@
+<VRTDataset rasterXSize="46" rasterYSize="23">
+  <SRS>GEOGCS[&quot;Geographic Coordinate System&quot;,DATUM[&quot;D_MOON&quot;,SPHEROID[&quot;MOON&quot;,1737400,0]],PRIMEM[&quot;Reference Meridian&quot;,0],UNIT[&quot;degree&quot;,0.0174532925199433]]</SRS>
+  <GeoTransform>  4.0000000000000000e+00,  1.7449603272111047e-01,  0.0000000000000000e+00, -7.9999999999999982e+00,  0.0000000000000000e+00, -1.7444213360526895e-01</GeoTransform>
+  <VRTRasterBand dataType="Byte" band="1">
+    <ColorInterp>Gray</ColorInterp>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">albedo_sub4/tile_4E8S.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="23" RasterYSize="23" DataType="Byte" BlockXSize="23" BlockYSize="23" />
+      <SrcRect xOff="0" yOff="0" xSize="23" ySize="23" />
+      <DstRect xOff="0" yOff="0" xSize="23" ySize="23" />
+    </SimpleSource>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">albedo_sub4/tile_8E8S.tif</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="23" RasterYSize="23" DataType="Byte" BlockXSize="23" BlockYSize="23" />
+      <SrcRect xOff="0" yOff="0" xSize="23" ySize="23" />
+      <DstRect xOff="23" yOff="0" xSize="23" ySize="23" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Byte" band="2">
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">albedo_sub4/tile_4E8S.tif</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="23" RasterYSize="23" DataType="Byte" BlockXSize="23" BlockYSize="23" />
+      <SrcRect xOff="0" yOff="0" xSize="23" ySize="23" />
+      <DstRect xOff="0" yOff="0" xSize="23" ySize="23" />
+    </SimpleSource>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">albedo_sub4/tile_8E8S.tif</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="23" RasterYSize="23" DataType="Byte" BlockXSize="23" BlockYSize="23" />
+      <SrcRect xOff="0" yOff="0" xSize="23" ySize="23" />
+      <DstRect xOff="23" yOff="0" xSize="23" ySize="23" />
+    </SimpleSource>
+  </VRTRasterBand>
+</VRTDataset>

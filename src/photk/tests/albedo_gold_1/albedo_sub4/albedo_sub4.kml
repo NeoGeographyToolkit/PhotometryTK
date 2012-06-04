@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Folder>
+  <GroundOverlay>
+    <Region><LatLonAltBox><north>0</north><south>-22.5</south><east>22.5</east><west>0</west></LatLonAltBox><Lod><minLodPixels>128</minLodPixels><maxLodPixels>-1</maxLodPixels></Lod></Region>
+    <name>albedo_sub4.png</name>
+    <Icon><href>albedo_sub4.png</href></Icon>
+    <LatLonBox><north>0</north><south>-22.5</south><east>22.5</east><west>0</west></LatLonBox>
+    <drawOrder>0</drawOrder>
+  </GroundOverlay>
+  <LookAt><longitude>8.04199</longitude><latitude>-10.0635</latitude><range>1.20059e+06</range></LookAt>
+  <Style><ListStyle><listItemType>checkHideChildren</listItemType></ListStyle></Style>
+</Folder>
+</kml>

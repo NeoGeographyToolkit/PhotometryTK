@@ -16,6 +16,7 @@
 // __END_LICENSE__
 
 // To do:
+// Put the Apache license everywhere!
 // Remove the albedo code from VW and ASP, including the directories, etc.
 // Make the unit tests work
 // Wipe all the code having to do with images.

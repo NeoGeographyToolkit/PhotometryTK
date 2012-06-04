@@ -79,7 +79,6 @@ namespace photometry {
     
     int useWeights;
     int saveWeights, computeWeightsSum, useNormalizedWeights;
-    int postScaleAlbedo;
     int maxNumIter;
     int computeErrors;
     int noDEMDataValue;

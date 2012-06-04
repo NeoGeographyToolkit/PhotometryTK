@@ -16,6 +16,7 @@
 // __END_LICENSE__
 
 // To do:
+// Put info on the uint testcases in the documentation.
 // Put the Apache license everywhere!
 // Remove the albedo code from VW and ASP, including the directories, etc.
 // Make the unit tests work

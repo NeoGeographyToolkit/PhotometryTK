@@ -1220,7 +1220,6 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
   settings.useWeights            = 0;
   settings.saveWeights           = 0;
   settings.useNormalizedWeights  = 0;
-  settings.postScaleAlbedo       = 0;
   settings.computeWeightsSum     = 0;
   settings.maxNumIter            = 0;
   settings.computeErrors         = 0;
@@ -1271,7 +1270,6 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
     // Actions
     CHECK_VAR("USE_WEIGHTS",              "%d", useWeights);
     CHECK_VAR("USE_NORMALIZED_WEIGHTS",   "%d", useNormalizedWeights);
-    CHECK_VAR("POST_SCALE_ALBEDO",        "%d", postScaleAlbedo);
     //CHECK_VAR("UPDATE_HEIGHT",          "%d", updateHeight); // handled via cmd-line option
     //CHECK_VAR("COMPUTE_ERRORS",         "%d", computeErrors); // handled via cmd-line option
 
@@ -1399,7 +1397,6 @@ void photometry::PrintGlobalParams(GlobalParams& settings){
   // Actions
   printf("USE_WEIGHTS                  %d\n", settings.useWeights);
   printf("USE_NORMALIZED_WEIGHTS       %d\n", settings.useNormalizedWeights);
-  printf("POST_SCALE_ALBEDO            %d\n", settings.postScaleAlbedo);
   //printf("UPDATE_HEIGHT              %d\n", settings.updateHeight);
   //printf("COMPUTE_ERRORS             %d\n", settings.computeErrors); // handled via cmd-line option
 

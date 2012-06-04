@@ -971,7 +971,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
 
     // The true albedo is in fact A0*( exp(-A1*alpha) + A2 ), for alpha = 0.
     // The quantity A0 is what we computed so far, so we must multiply by the remaining factor.
-    if (useReflectance && globalParams.postScaleAlbedo){
+    if (useReflectance){
       for (int k = 0; k < albedoTile.rows(); ++k) {
         for (int l = 0; l < albedoTile.cols(); ++l) {
           if ( is_valid(albedoTile(l, k)) ) albedoTile(l, k)

@@ -10,7 +10,7 @@ SIMULATION_BOX            6 : 10 : -10 : -9 # lon_min:lon_max:lat_min:lat_max
 REFLECTANCE_TYPE          2
 SHADOW_THRESH             40
 SHADOW_REMOVAL_TYPE       1
-TR_CONST                  1.0
+TR_CONST                  1.5
 PHASE_COEFF_A1            1.4
 PHASE_COEFF_A2            0.5
 MAX_NUM_ITER              2
@@ -19,7 +19,6 @@ NO_DEM_DATA_VAL           -32767
 # Actions
 USE_WEIGHTS               1
 USE_NORMALIZED_WEIGHTS    1
-POST_SCALE_ALBEDO         1
 COMPUTE_ERRORS            1
 
 # Parameters controlling the flow. Normally

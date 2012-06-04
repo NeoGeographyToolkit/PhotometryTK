@@ -19,7 +19,6 @@ NO_DEM_DATA_VAL           -32767
 # Actions
 USE_WEIGHTS               1
 USE_NORMALIZED_WEIGHTS    0
-POST_SCALE_ALBEDO         0
 COMPUTE_ERRORS            0
 
 # Parameters controlling the flow. Normally

@@ -20,24 +20,10 @@ template <class ChannelT>
 class FullIterationTest : public ::testing::Test {
 protected:
   FullIterationTest() {}
-
-  typedef PixelGrayA<ChannelT> Px;
-
-  virtual void SetUp() {
-    std::cout << " --------------- Now in setup" << std::endl;
-    albedo.set_size(255, 255);
-    albedo(128,128) = Px(129,255);
-    albedo(128,129) = Px(120,255);
-  }
-
-  std::vector<double> exposure;
-  std::vector<ImageView<Px > > drgs;
-  ImageView<Px > albedo;
-
+  virtual void SetUp() {}
 };
 
 typedef FullIterationTest<uint8> FullU8IterationTest;
-typedef FullIterationTest<float> FullF32IterationTest;
 
 TEST_F( FullU8IterationTest, FullCycle ) {
 
@@ -48,8 +34,8 @@ TEST_F( FullU8IterationTest, FullCycle ) {
     "cmpdirs.sh", "meta",
     "DIM_input_1280mpp_masked", "DIM_input_2560mpp",
     "DEM_tiles_sub64",
-    "photometry_settings_3.txt", "albedo_gold_3",
-    "photometry_settings_4.txt", "albedo_gold_4"
+    "photometry_settings_1.txt", "albedo_gold_1",
+    "photometry_settings_2.txt", "albedo_gold_2"
   };
   
   for (int s = 0 ; s < sizeof(files)/sizeof(string); s++){
@@ -61,22 +47,22 @@ TEST_F( FullU8IterationTest, FullCycle ) {
   std::cout << cmd << std::endl;
   int flag = system(cmd.c_str());
   
-  // Run test 3
-  cmd="./reconstruct.sh photometry_settings_3.txt curr_3 > output3.txt";
+  // Run test 1
+  cmd="./reconstruct.sh photometry_settings_1.txt curr_1 > output1.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
   // Run a directory comparison and check the status
-  cmd="cmpdirs.sh albedo_gold_3 albedo_curr_3";
+  cmd="cmpdirs.sh albedo_gold_1 albedo_curr_1";
   std::cout << cmd << std::endl;
   flag = system(cmd.c_str());
   EXPECT_EQ(flag, 0);
   
-  // Run test 4
-  cmd="./reconstruct.sh photometry_settings_4.txt curr_4 > output4.txt";
+  // Run test 2
+  cmd="./reconstruct.sh photometry_settings_2.txt curr_2 > output2.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
   // Run a directory comparison and check the status
-  cmd="cmpdirs.sh albedo_gold_4 albedo_curr_4";
+  cmd="cmpdirs.sh albedo_gold_2 albedo_curr_2";
   std::cout << cmd << std::endl;
   flag = system(cmd.c_str());
   EXPECT_EQ(flag, 0);

@@ -7,8 +7,8 @@
 
 /// \file Reconstruct.h
 
-#ifndef __VW_PHOTOMETRY_RECONSTRUCT_H__
-#define __VW_PHOTOMETRY_RECONSTRUCT_H__
+#ifndef __PHOTOMETRY_RECONSTRUCT_H__
+#define __PHOTOMETRY_RECONSTRUCT_H__
 
 enum {NO_REFL = 0, LAMBERT, LUNAR_LAMBERT};
 enum {NO_SHADOW_REMOVAL = 0,
@@ -47,7 +47,6 @@ namespace photometry {
 
     int initialSetup;
     float tileSize;        // in degrees
-    int useTiles;          // 1 or 0 
     int pixelPadding;      // in pixels
     vw::Vector4 simulationBox; // lonMin, lonMax, latMin, latMax (If not present the entire albedo will be simulated)
     
@@ -78,7 +77,7 @@ namespace photometry {
     std::string phaseCoeffsFileName;
     
     int useWeights;
-    int saveWeights, computeWeightsSum, useNormalizedWeights;
+    int saveWeights, computeWeightsSum, useNormalizedCostFun;
     int maxNumIter;
     int computeErrors;
     int noDEMDataValue;
@@ -151,4 +150,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_RECONSTRUCT_H__
+#endif//__PHOTOMETRY_RECONSTRUCT_H__

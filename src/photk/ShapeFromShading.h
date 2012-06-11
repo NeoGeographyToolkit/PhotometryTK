@@ -7,8 +7,8 @@
 
 /// \file ShapeFromShading.h
 
-#ifndef __VW_PHOTOMETRY_SHAPE_FROM_SHADING_H__
-#define __VW_PHOTOMETRY_SHAPE_FROM_SHADING_H__
+#ifndef __PHOTOMETRY_SHAPE_FROM_SHADING_H__
+#define __PHOTOMETRY_SHAPE_FROM_SHADING_H__
 
 #include <vw/Image/ImageView.h>
 #include <vw/Math/Vector.h>
@@ -36,4 +36,4 @@ namespace photometry {
   
 } //end photometry
 
-#endif//__VW_PHOTOMETRY_SHAPE_FROM_SHADING_H__
+#endif//__PHOTOMETRY_SHAPE_FROM_SHADING_H__

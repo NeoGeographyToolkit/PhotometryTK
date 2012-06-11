@@ -7,8 +7,8 @@
 
 /// \file Outlier.h
 
-#ifndef __VW_PHOTOMETRY_OUTLIER_H__
-#define __VW_PHOTOMETRY_OUTLIER_H__
+#ifndef __PHOTOMETRY_OUTLIER_H__
+#define __PHOTOMETRY_OUTLIER_H__
 
 #include <vector>
 #include <string>
@@ -29,4 +29,4 @@ namespace photometry {
 
 } // no photometry
 
-#endif//__VW_PHOTOMETRY_OUTLIER_H__
+#endif//__PHOTOMETRY_OUTLIER_H__

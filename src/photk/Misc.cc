@@ -358,13 +358,13 @@ std::vector<std::string> parse_command_arguments(int argc, char *argv[] ) {
 }
 
 void photometry::getTileCornersWithoutPadding(// Inputs
-                                                  int numCols, int numRows,
-                                                  cartography::GeoReference const& geoRef,
-                                                  double tileSize, int pixelPadding,
-                                                  // Outputs
-                                                  double & min_x, double & max_x,
-                                                  double & min_y, double & max_y
-                                                  ){
+                                              int numCols, int numRows,
+                                              cartography::GeoReference const& geoRef,
+                                              double tileSize, int pixelPadding,
+                                              // Outputs
+                                              double & min_x, double & max_x,
+                                              double & min_y, double & max_y
+                                              ){
   
   // Given a tile which we know is padded by pixelPadding on each side, find the lon-lat coordinates
   // of the tile corners without the padding.
@@ -388,13 +388,13 @@ void photometry::getTileCornersWithoutPadding(// Inputs
   
 
 void photometry::applyPaddingToTileCorners(// Inputs
-                                               cartography::GeoReference const& geoRef,
-                                               int pixelPadding,
-                                               double min_x, double max_x,
-                                               double min_y, double max_y,
-                                               // Outputs
-                                               double & min_x_padded, double & max_x_padded,
-                                               double & min_y_padded, double & max_y_padded){
+                                           cartography::GeoReference const& geoRef,
+                                           int pixelPadding,
+                                           double min_x, double max_x,
+                                           double min_y, double max_y,
+                                           // Outputs
+                                           double & min_x_padded, double & max_x_padded,
+                                           double & min_y_padded, double & max_y_padded){
   
   // Given a tile, put a padding of pixelPadding pixels on each side. Return the lon-lat
   // coordinates of the obtained tile.
@@ -417,12 +417,12 @@ void photometry::applyPaddingToTileCorners(// Inputs
 }
 
 void photometry::readDEMTilesIntersectingBox(// Inputs
-                                                 double noDEMDataValue,
-                                                 Vector2 boxNW, Vector2 boxSE,
-                                                 std::vector<std::string> const& DEMTiles,
-                                                 // Outputs
-                                                 ImageView<PixelGray<float> > & combinedDEM,
-                                                 cartography::GeoReference    & combinedDEM_geo){
+                                             double noDEMDataValue,
+                                             Vector2 boxNW, Vector2 boxSE,
+                                             std::vector<std::string> const& DEMTiles,
+                                             // Outputs
+                                             ImageView<PixelGray<float> > & combinedDEM,
+                                             cartography::GeoReference    & combinedDEM_geo){
   
   // Given a set of int16 DEM tiles and a box, get all the pixels from
   // all the tiles which are contained within the box. The newly
@@ -523,8 +523,8 @@ void photometry::readDEMTilesIntersectingBox(// Inputs
 }
 
 void photometry::listTifsInDir(const std::string & dirName,
-                                   std::vector<std::string> & tifsInDir
-                                   ){
+                               std::vector<std::string> & tifsInDir
+                               ){
   
   tifsInDir.clear();
   
@@ -550,8 +550,8 @@ void photometry::listTifsInDir(const std::string & dirName,
 }
 
 void photometry::writeSunAndSpacecraftPosition(std::string prefix,
-                                                   std::string sunFile, std::string spacecraftFile,
-                                                   Vector3 sunPosition, Vector3 spacecraftPosition){
+                                               std::string sunFile, std::string spacecraftFile,
+                                               Vector3 sunPosition, Vector3 spacecraftPosition){
 
   // convert from meters to kilometers
   double tokm = 0.001;
@@ -857,8 +857,8 @@ Vector4 photometry::getImageCorners(std::string imageFile){
 }
 
 void photometry::listTifsInDirOverlappingWithBox(const std::string & dirName,
-                                                     Vector4 & boxCorners,
-                                                     const std::string & outputListName){
+                                                 Vector4 & boxCorners,
+                                                 const std::string & outputListName){
   
   std::vector<std::string> tifsInDir;
   listTifsInDir(dirName, tifsInDir);
@@ -884,12 +884,11 @@ void photometry::listTifsInDirOverlappingWithBox(const std::string & dirName,
 }
 
 void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
-                                                         std::string imageFile, Vector4 const& simulationBox,
-                                                         std::vector<ImageRecord> const& drgRecords,
-                                                         std::string blankTilesList,  std::string blankTilesDir,
-                                                         std::string DEMTilesList,    std::string meanDEMDir,
-                                                         std::string albedoTilesList, std::string albedoDir
-                                                         ){
+                                                     std::string imageFile, Vector4 const& simulationBox,
+                                                     std::vector<ImageRecord> const& drgRecords,
+                                                     std::string DEMTilesList,    std::string meanDEMDir,
+                                                     std::string albedoTilesList, std::string albedoDir
+                                                     ){
 
   // Create all the tiles which overlap with all DRG images which in
   // turn overlap with the simulation box.
@@ -928,7 +927,6 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
   enforceUint8Img(imageFile);
   
   GeoReference geo; read_georeference(geo, imageFile);
-  ofstream fht(blankTilesList.c_str());  fht.precision(20);
   ofstream fhd(DEMTilesList.c_str());    fhd.precision(20);
   ofstream fha(albedoTilesList.c_str()); fha.precision(20);
 
@@ -971,27 +969,23 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
     if (uE < 0){ uE = -uE; sE = "W";}
     if (uN < 0){ uN = -uN; sN = "S";}
     ostringstream os;
-    os << blankTilesDir << "/tile_" << uE << sE << uN << sN << ".tif";
-    std::string blankTileFile = os.str();
-    std::string DEMTileFile    = meanDEMDir + suffix_from_filename(blankTileFile);
-    std::string albedoTileFile = albedoDir  + suffix_from_filename(blankTileFile);
+    os << albedoDir << "/tile_" << uE << sE << uN << sN << ".tif";
+    std::string albedoTileFile = os.str();
+    std::string DEMTileFile    = meanDEMDir + suffix_from_filename(albedoTileFile);
     
-    // The blank tiles themselves have no information, they are just
-    // templates which we will later cycle through and create DRG
-    // and tiles at each pixel.
-    ImageView<PixelMask<PixelGray<float> > > blankTile(nrows, ncols);
+    // The albedo tiles themselves have no information for now, but we need
+    // them to exist on disk together with correct GeoReference for subsequent
+    // steps of the algorithm.
+    ImageView<PixelMask<PixelGray<float> > > albedoTile(nrows, ncols);
       
-    std::cout << "Writing " << blankTileFile << std::endl;
-    write_georeferenced_image(blankTileFile,
-                              channel_cast<uint8>(clamp(blankTile, 0.0,255.0)),
+    std::cout << "Writing " << albedoTileFile << std::endl;
+    write_georeferenced_image(albedoTileFile,
+                              channel_cast<uint8>(clamp(albedoTile, 0.0,255.0)),
                               geo, TerminalProgressCallback("{Core}","Processing:"));
 
     // The actual corners of the tile may differ slightly than what we intended
     // due to rounding. Compute the actual corners now that the tile was created.
-    Vector4 C = ComputeGeoBoundary(geo, blankTile.cols(), blankTile.rows());
-
-    fht << 1 << " " << blankTileFile << " "
-        << C(0) << " " << C(1) << " " << C(2) << " " << C(3) << std::endl;
+    Vector4 C = ComputeGeoBoundary(geo, albedoTile.cols(), albedoTile.rows());
 
     fha << 1 << " " << albedoTileFile << " "
         << C(0) << " " << C(1) << " " << C(2) << " " << C(3) << std::endl;
@@ -1001,20 +995,17 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
 
   } // End iterating over tiles
     
-  fht.close();
   fhd.close();
   fha.close();
   
 }
 
-std::vector<int> photometry::GetInputIndices( std::vector<std::string> inputFiles, std::vector<std::string> DRGFiles){
+std::vector<int> photometry::GetInputIndices(std::string inputFile, std::vector<std::string> const& DRGFiles){
 
-  std::vector<int>  inputIndices;
-  for (int j = 0; j < (int)inputFiles.size(); j++){
-    for (int i = 0; i < (int)DRGFiles.size(); i++){
-      if (DRGFiles[i].compare(inputFiles[j])==0){
-        inputIndices.push_back(i);
-      }
+  std::vector<int> inputIndices;
+  for (int i = 0; i < (int)DRGFiles.size(); i++){
+    if (DRGFiles[i].compare(inputFile) == 0){
+      inputIndices.push_back(i);
     }
   }
 
@@ -1024,7 +1015,7 @@ std::vector<int> photometry::GetInputIndices( std::vector<std::string> inputFile
 //this function determines the image overlap for the general case
 //it takes into consideration any set of overlapping images.
 std::vector<int> photometry::makeOverlapList(const std::vector<ModelParams>& drgFiles,
-                                                 const std::string& currFile) {
+                                             const std::string& currFile) {
 
   std::vector<int> overlapIndices; overlapIndices.clear();
   Vector4 currCorners = getImageCorners(currFile);
@@ -1059,7 +1050,7 @@ std::vector<int> photometry::makeOverlapList(const std::vector<ModelParams>& drg
 }
 
 std::vector<int> photometry::makeOverlapList(const std::vector<ImageRecord>& drgRecords,
-                                                 const std::string& currFile) {
+                                             const std::string& currFile) {
 
   // To do: Merge this function with the one above it and together with other
   // overlap logic seen in this file.
@@ -1078,26 +1069,11 @@ std::vector<int> photometry::makeOverlapList(const std::vector<ImageRecord>& drg
   return overlapIndices;
 }
 
-std::vector<std::vector<int> > photometry::makeOverlapList(const std::vector<std::string>& inputFiles,
-                                                               const std::vector<ModelParams>& DRGFiles){
-  std::vector<std::vector<int> > overlapIndices;
-  overlapIndices.resize(inputFiles.size());
-  
-  for (unsigned int i = 0; i < inputFiles.size(); ++i) {  
-    overlapIndices[i] = makeOverlapList(DRGFiles, inputFiles[i]);
+void photometry::printOverlapList(std::vector<int> const& overlapIndices){
+  for (int j = 0; j < (int)overlapIndices.size(); j++){
+    printf("%d ", overlapIndices[j]);
   }
-  return overlapIndices;  
-}
-
-void photometry::printOverlapList(std::vector<std::vector<int> > overlapIndices){
-  
-  for (int i=0; i < (int)overlapIndices.size(); i++){
-    printf("%d: ", i);
-    for (int j = 0; j < (int)overlapIndices[i].size(); j++){
-      printf("%d ", overlapIndices[i][j]);
-    }
-    printf("\n");
-  }
+  printf("\n");
 }
 
 
@@ -1166,14 +1142,14 @@ void photometry::extractSimBox(char * line, Vector4 & simulationBox){
   return;
 }
 
-int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & settings){
+int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & settings){
 
-  ifstream configFile(config_filename);
-  if (!configFile.is_open()){
-    std::cout << "ERROR: Config file " << config_filename << " not found."<< std::endl;
+  ifstream settingsFile(settings_filename);
+  if (!settingsFile.is_open()){
+    std::cout << "ERROR: settings file " << settings_filename << " not found."<< std::endl;
     exit(1);
   }
-  printf("CONFIG FILE FOUND\n");
+  printf("SETTINGS FILE FOUND\n");
   
   int MAX_LENGTH = 5000;
   char line[MAX_LENGTH];
@@ -1190,7 +1166,6 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
   settings.spacecraftPosFile     = "";
   settings.initialSetup          = 0;
   settings.tileSize              = -1.0; // invalid on purpose, must be set later
-  settings.useTiles              = 1;    // 1 or 0, this variable will go away 
   settings.pixelPadding          = 5;    // By how much to pad the albedo tiles
   // Default simulation box, simulate the full sphere. We need to go
   // beyond [-180, 180], since the images can have pixels
@@ -1219,7 +1194,7 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
   settings.phaseCoeffsFileName   = "";
   settings.useWeights            = 0;
   settings.saveWeights           = 0;
-  settings.useNormalizedWeights  = 0;
+  settings.useNormalizedCostFun  = 0;
   settings.computeWeightsSum     = 0;
   settings.maxNumIter            = 0;
   settings.computeErrors         = 0;
@@ -1235,8 +1210,8 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
     sscanf(inVal, fmt, buffer); settings.assignTo = buffer;     \
   }
   
-  while (!configFile.eof()) {
-    configFile.getline(line, MAX_LENGTH);
+  while (!settingsFile.eof()) {
+    settingsFile.getline(line, MAX_LENGTH);
     
     // truncate comments
     commentPos = strchr(line, '#');
@@ -1254,7 +1229,6 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
     CHECK_STR("SPACECRAFT_POSITION_FILE", "%s", spacecraftPosFile);
 
     // Constants
-    //CHECK_VAR("USE_TILES",              "%d", useTiles); // hidden from user, true by default
     CHECK_VAR("TILE_SIZE",                "%f", tileSize);
     //CHECK_VAR("PIXEL_PADDING",          "%d", pixelPadding); // internal variable
     extractSimBox(line, settings.simulationBox);
@@ -1269,7 +1243,7 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
 
     // Actions
     CHECK_VAR("USE_WEIGHTS",              "%d", useWeights);
-    CHECK_VAR("USE_NORMALIZED_WEIGHTS",   "%d", useNormalizedWeights);
+    CHECK_VAR("USE_NORMALIZED_COST_FUN",  "%d", useNormalizedCostFun);
     //CHECK_VAR("UPDATE_HEIGHT",          "%d", updateHeight); // handled via cmd-line option
     //CHECK_VAR("COMPUTE_ERRORS",         "%d", computeErrors); // handled via cmd-line option
 
@@ -1290,7 +1264,7 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
     CHECK_VAR("SLOPE_TYPE",               "%d", slopeType);
   }
 
-  configFile.close();
+  settingsFile.close();
 
   // Validation
 
@@ -1354,11 +1328,11 @@ int photometry::ReadConfigFile(char *config_filename, struct GlobalParams & sett
     std::cerr << "ERROR: File " << settings.spacecraftPosFile << " does not exist." << std::endl;
     exit(1);
   }
-  if (settings.useTiles != 0 && settings.tileSize <= 0.0){
+  if (settings.tileSize <= 0.0){
     std::cerr << "ERROR: The tile size must be positive." << std::endl;
     exit(1);
   }
-  if (settings.useTiles != 0 && settings.pixelPadding < 0){
+  if (settings.pixelPadding < 0){
     std::cerr << "ERROR: The pixel padding must be non-negative." << std::endl;
     exit(1);
   }
@@ -1380,7 +1354,6 @@ void photometry::PrintGlobalParams(GlobalParams& settings){
   printf("SPACECRAFT_POSITION_FILE     %s\n", settings.spacecraftPosFile.c_str());
 
   // Constants
-  //printf("USE_TILES                  %d\n", settings.useTiles);  // hidden from user, true by default
   printf("TILE_SIZE                    %f\n", settings.tileSize);
   //printf("PIXEL_PADDING              %d\n", settings.pixelPadding); // internal variable
   Vector4 s = settings.simulationBox;
@@ -1396,7 +1369,7 @@ void photometry::PrintGlobalParams(GlobalParams& settings){
 
   // Actions
   printf("USE_WEIGHTS                  %d\n", settings.useWeights);
-  printf("USE_NORMALIZED_WEIGHTS       %d\n", settings.useNormalizedWeights);
+  printf("USE_NORMALIZED_COST_FUN      %d\n", settings.useNormalizedCostFun);
   //printf("UPDATE_HEIGHT              %d\n", settings.updateHeight);
   //printf("COMPUTE_ERRORS             %d\n", settings.computeErrors); // handled via cmd-line option
 
@@ -1420,7 +1393,7 @@ void photometry::PrintGlobalParams(GlobalParams& settings){
 }
 
 bool photometry::readImagesFile(std::vector<ImageRecord>& images,
-                                    const std::string& imagesListName){
+                                const std::string& imagesListName){
   std::ifstream imagesList(imagesListName.c_str());
   if (!imagesList) {
     std::cerr << "ERROR: readImagesFile: can't open " << imagesListName
@@ -1467,12 +1440,12 @@ bool photometry::readImagesFile(std::vector<ImageRecord>& images,
   return true;
 }
 
-void photometry::list_DRG_in_box_and_all_DEM(bool useTiles, bool useReflectance,
-                                                 std::string allDRGIndex, std::string allDEMIndex,
-                                                 Vector4 simulationBox, 
-                                                 std::string DRGDir,  std::string DEMDir, 
-                                                 std::string DRGInBoxList
-                                                 ){
+void photometry::listDRGinBoxAndAllDEM(bool useReflectance,
+                                       std::string allDRGIndex, std::string allDEMIndex,
+                                       Vector4 simulationBox, 
+                                       std::string DRGDir,  std::string DEMDir, 
+                                       std::string DRGInBoxList
+                                       ){
 
   // Create the lists of ALL DRG and DEM images in DRGDir and
   // DEMDir, if these lists don't exist already.
@@ -1492,7 +1465,7 @@ void photometry::list_DRG_in_box_and_all_DEM(bool useTiles, bool useReflectance,
   // Create the list of all DRG files intersecting the current box.
   ofstream fh(DRGInBoxList.c_str());
   if (!fh){
-    std::cerr << "ERROR: list_DRG_in_box_and_all_DEM: can't open " << DRGInBoxList
+    std::cerr << "ERROR: listDRGinBoxAndAllDEM: can't open " << DRGInBoxList
               << " for writing" << std::endl;
     exit(1);
   }
@@ -1507,9 +1480,7 @@ void photometry::list_DRG_in_box_and_all_DEM(bool useTiles, bool useReflectance,
   }
   fh.close();
 
-  if (!useTiles || !useReflectance){
-    return;
-  }
+  if (!useReflectance) return;
   
   // Create the index of all DEM tiles if it does not exist already.
   std::vector<ImageRecord> DEMTilesRecords;

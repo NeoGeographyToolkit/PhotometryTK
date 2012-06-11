@@ -9,8 +9,8 @@
 ///
 /// A convenience header that includes the header files in vw/Photometry.
 ///
-#ifndef __VW_PHOTOMETRY_H__
-#define __VW_PHOTOMETRY_H__
+#ifndef __PHOTOMETRY_H__
+#define __PHOTOMETRY_H__
 
 #include <photk/Albedo.h>
 #include <photk/Camres.h>
@@ -26,5 +26,5 @@
 #include <photk/ShapeFromShading.h>
 #include <photk/Weights.h>
 
-#endif // __VW_PHOTOMETRY_H__
+#endif // __PHOTOMETRY_H__
 

@@ -7,8 +7,8 @@
 
 /// \file Misc.h
 
-#ifndef __VW_PHOTOMETRY_MISC_H__
-#define __VW_PHOTOMETRY_MISC_H__
+#ifndef __PHOTOMETRY_MISC_H__
+#define __PHOTOMETRY_MISC_H__
 
 #include <sys/stat.h>
 #include <math.h>
@@ -143,40 +143,37 @@ namespace photometry {
   void createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
                                            std::string imageFile, vw::Vector4 const& simulationBox,
                                            std::vector<ImageRecord> const& drgRecords,
-                                           std::string blankTilesList,  std::string blankTilesDir,
                                            std::string DEMTilesList,    std::string meanDEMDir,
                                            std::string albedoTilesList, std::string albedoDir
                                            );
 
-  std::vector<int> GetInputIndices( std::vector<std::string> inputFiles, std::vector<std::string> DRGFiles);
+  std::vector<int> GetInputIndices(std::string inputFile, std::vector<std::string> const& DRGFiles);
+
   std::vector<int> makeOverlapList(const std::vector<ModelParams>& drgFiles,
                                    const std::string& currFile);
 
   std::vector<int> makeOverlapList(const std::vector<ImageRecord>& drgRecords,
                                    const std::string& currFile);
       
-  std::vector<std::vector<int> > makeOverlapList(const std::vector<std::string>& inputFiles,
-                                                 const std::vector<ModelParams>& DRGFiles);
-    
-  void printOverlapList(std::vector<std::vector<int> > overlapIndices);
+  void printOverlapList(std::vector<int> const& overlapIndices);
 
   vw::Vector4 parseSimBox(std::string simulationBoxStr);
 
   void extractSimBox(char * line, vw::Vector4 & simulationBox);
 
-  int ReadConfigFile(char *config_filename, struct GlobalParams & settings);
+  int ReadSettingsFile(char *settings_filename, struct GlobalParams & settings);
 
   void PrintGlobalParams(GlobalParams& settings);
 
   bool readImagesFile(std::vector<ImageRecord>& images,
                       const std::string& imagesListName);
 
-  void list_DRG_in_box_and_all_DEM(bool useTiles, bool useReflectance,
-                                   std::string allDRGIndex, std::string allDEMIndex,
-                                   vw::Vector4 simulationBox, 
-                                   std::string DRGDir,  std::string DEMDir, 
-                                   std::string DRGInBoxList
-                                   );
+  void listDRGinBoxAndAllDEM(bool useReflectance,
+                             std::string allDRGIndex, std::string allDEMIndex,
+                             vw::Vector4 simulationBox, 
+                             std::string DRGDir,  std::string DEMDir, 
+                             std::string DRGInBoxList
+                             );
 
     
   template <class pixelInType, class pixelOutType>
@@ -362,4 +359,4 @@ namespace vw{
   /// \endcond
 }
 
-#endif//__VW_PHOTOMETRY_MISC_H__
+#endif//__PHOTOMETRY_MISC_H__

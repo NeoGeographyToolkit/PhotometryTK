@@ -7,8 +7,8 @@
 
 /// \file ReconstructError.h
 
-#ifndef __VW_PHOTOMETRY_RECONSTRUCTERROR_H__
-#define __VW_PHOTOMETRY_RECONSTRUCTERROR_H__
+#ifndef __PHOTOMETRY_RECONSTRUCTERROR_H__
+#define __PHOTOMETRY_RECONSTRUCTERROR_H__
 
 #include <string>
 #include <vector>
@@ -28,4 +28,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_RECONSTRUCTERROR_H__
+#endif//__PHOTOMETRY_RECONSTRUCTERROR_H__

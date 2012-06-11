@@ -7,8 +7,8 @@
 
 /// \file Albedo.h
 
-#ifndef __VW_PHOTOMETRY_ALBEDO_H__
-#define __VW_PHOTOMETRY_ALBEDO_H__
+#ifndef __PHOTOMETRY_ALBEDO_H__
+#define __PHOTOMETRY_ALBEDO_H__
 
 #include <string>
 #include <vector>
@@ -55,7 +55,6 @@ namespace photometry {
   };
   
   double actOnTile(bool isLastIter, bool computeErrors,
-                   std::string blankTileFile,
                    std::string DEMTileFile,
                    std::string albedoTileFile,
                    std::string errorTileFile, std::string weightsSumFile, 
@@ -78,4 +77,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_ALBEDO_H__
+#endif//__PHOTOMETRY_ALBEDO_H__

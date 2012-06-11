@@ -529,11 +529,11 @@ float photometry::computeImageReflectanceNoWrite(ModelParams const& input_img_pa
 }
 
 float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
-                                 std::vector<ImageRecord> & albedoTiles,
-                                 std::vector<ImageRecord> & weightsSumTiles,
-                                 std::vector<int> & overlap,
-                                 ModelParams & input_img_params,
-                                 std::string maskedImgFile, GlobalParams const& globalParams){
+                             std::vector<ImageRecord> & albedoTiles,
+                             std::vector<ImageRecord> & weightsSumTiles,
+                             std::vector<int> & overlap,
+                             ModelParams & input_img_params,
+                             GlobalParams const& globalParams){
 
   // Perform one of the following operations for the given image:
 
@@ -562,8 +562,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
 
   bool useWeights = (globalParams.useWeights != 0);
   if (useWeights){
-    bool useTiles = true;
-    ReadWeightsParamsFromFile(useTiles, &input_img_params);
+    ReadWeightsParamsFromFile(input_img_params);
   }
 
   // Quantities needed for computing reflectance
@@ -626,7 +625,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
       
     std::string weightsSumFile = weightsSumTiles[overlap[i]].path;
     ImageView<float> weightsSum;
-    if (globalParams.useNormalizedWeights && globalParams.updateExposure){
+    if (globalParams.useNormalizedCostFun && globalParams.updateExposure){
       std::cout << "Reading " << weightsSumFile << std::endl;
       weightsSum = copy(DiskImageView<float>(weightsSumFile));
     }
@@ -741,7 +740,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
           // Find the weight, and normalize it so that all weights at the current pixel sum up to 1.
           double weight = 1.0;
           if (useWeights) weight = ComputeLineWeightsHV(input_img_pix, input_img_params);
-          if (globalParams.useNormalizedWeights){
+          if (globalParams.useNormalizedCostFun){
             double weights_sum = interp_weightsSum(x, y);
             if (weights_sum == 0) continue;
             weight /= weights_sum;

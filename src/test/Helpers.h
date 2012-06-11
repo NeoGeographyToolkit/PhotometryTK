@@ -5,8 +5,8 @@
 // __END_LICENSE__
 
 
-#ifndef __VW_TESTS_CONFIG_TEST_H__
-#define __VW_TESTS_CONFIG_TEST_H__
+#ifndef __PHOTOMETRY_TESTS_CONFIG_TEST_H__
+#define __PHOTOMETRY_TESTS_CONFIG_TEST_H__
 
 #include <cmath>
 #include <complex>

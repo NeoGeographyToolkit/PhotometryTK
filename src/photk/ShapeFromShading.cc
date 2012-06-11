@@ -320,10 +320,10 @@ ComputeBlockJacobianTiles(ImageViewBase<ViewT1> const& overlapImage, GeoReferenc
 
 //call function for the update of the height map. main call function for shape from shading - from multiple images
 void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
-                                          std::string albedoTileFile,
-                                          std::string sfsTileFile,
-                                          std::vector<ModelParams> & overlapImgParams,
-                                          GlobalParams globalParams){
+                                      std::string albedoTileFile,
+                                      std::string sfsTileFile,
+                                      std::vector<ModelParams> & overlapImgParams,
+                                      GlobalParams globalParams){
 
   float noDEMDataValue;
   if ( !readNoDEMDataVal(DEMTileFile, noDEMDataValue)){
@@ -336,8 +336,7 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
   // Load the weights if needed
   if (globalParams.useWeights != 0){
     for (int m = 0; m < numOverlapImages; m++){
-      bool useTiles = true;
-      ReadWeightsParamsFromFile(useTiles, &overlapImgParams[m]);
+      ReadWeightsParamsFromFile(overlapImgParams[m]);
     }
   }
   

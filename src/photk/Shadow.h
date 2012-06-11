@@ -7,8 +7,8 @@
 
 /// \file Shadow.h
 
-#ifndef __VW_PHOTOMETRY_SHADOW_H__
-#define __VW_PHOTOMETRY_SHADOW_H__
+#ifndef __PHOTOMETRY_SHADOW_H__
+#define __PHOTOMETRY_SHADOW_H__
 
 #ifdef _MSC_VER
 #pragma warning(disable:4244)
@@ -29,4 +29,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_SHADOW_H__
+#endif//__PHOTOMETRY_SHADOW_H__

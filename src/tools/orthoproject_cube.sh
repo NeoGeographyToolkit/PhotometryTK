@@ -3,8 +3,8 @@
 # Orthoproject an ISIS cube onto each of the provided DEM tiles and combine the obtained output images.
 # This script requires the availability of Ames Stereo Pipeline, ISIS libraries, and GDAL tools.
 
-if [ "$#" -lt 5 ]; then 
-    echo Usage: "$0 input.cub input_isis_adjust meters-per-pixel number-of-processors output.tif"
+if [ "$#" -lt 6 ]; then 
+    echo Usage: "$0 input.cub input_isis_adjust DEM_dir mpp num_proc output.tif"
     exit
 fi
 

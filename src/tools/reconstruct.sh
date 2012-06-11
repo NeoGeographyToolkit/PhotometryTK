@@ -30,23 +30,20 @@ fi
 settingsFile=$1
 labelStr=$2
 
+# Path to executables
+PHOTOMETRY_TOOLKIT_PATH=$HOME/PhotometryTK
+VISION_WORKBENCH_PATH=$HOME/visionworkbench
+reconstruct="$PHOTOMETRY_TOOLKIT_PATH/build/src/tools/reconstruct"
+image2qtree="$VISION_WORKBENCH_PATH/src/vw/tools/image2qtree"
+
 # Output directory
 resDir=albedo_$labelStr
 
 updateExposure=0 # updating the exposure makes things worse
 updatePhase=1  
-
 TAG="" # Use here AS15, AS16, or AS17 to do albedo only for a specific mission
 
-numProc=8              # number of processes to use
-echo numProc=$numProc
 if [ "$PBS_NODEFILE" != "" ]; then useSuperComp=1; else useSuperComp=0; fi
-
-# Executables
-PHOTOMETRY_TOOLKIT_PATH=$HOME/PhotometryTK/build/src/tools
-VISION_WORKBENCH_PATH=$HOME/visionworkbench/src/vw/tools
-reconstruct="$PHOTOMETRY_TOOLKIT_PATH/reconstruct"
-image2qtree="$VISION_WORKBENCH_PATH/image2qtree"
 
 # Validation
 if [ ! -f "$settingsFile" ]; then echo "ERROR: File $settingsFile does not exist.";      exit; fi
@@ -54,15 +51,17 @@ if [ ! -x "$reconstruct"  ]; then echo "ERROR: Program $reconstruct is not execu
 if [ ! -x "$image2qtree"  ]; then echo "ERROR: Program $image2qtree is not executable."; exit; fi
 
 imagesList="$resDir/imagesList.txt"
-tilesList="$resDir/tilesList.txt"
-options="-c $settingsFile -r $resDir -f $imagesList -t $tilesList" 
+albedoTilesList="$resDir/albedoTilesList.txt"
+options="-s $settingsFile -r $resDir -f $imagesList -t $albedoTilesList" 
 
 # Parse some values from the settings file. Make sure to strip the comments
 # as to not confuse the parsing.
+NUM_PROCESSES=$(  cat $settingsFile | perl -pi -e "s/\#.*?\n/\n/g" | grep NUM_PROCESSES  | awk '{print $2}')
 DRG_DIR=$(        cat $settingsFile | perl -pi -e "s/\#.*?\n/\n/g" | grep DRG_DIR        | awk '{print $2}')
 MAX_NUM_ITER=$(   cat $settingsFile | perl -pi -e "s/\#.*?\n/\n/g" | grep MAX_NUM_ITER   | awk '{print $2}')
 COMPUTE_ERRORS=$( cat $settingsFile | perl -pi -e "s/\#.*?\n/\n/g" | grep COMPUTE_ERRORS | awk '{print $2}')
 UPDATE_HEIGHT=$(  cat $settingsFile | perl -pi -e "s/\#.*?\n/\n/g" | grep UPDATE_HEIGHT  | awk '{print $2}')
+if [ "$NUM_PROCESSES"  = "" ]; then NUM_PROCESSES=1;  fi
 if [ "$MAX_NUM_ITER"   = "" ]; then MAX_NUM_ITER=0;   fi
 if [ "$COMPUTE_ERRORS" = "" ]; then COMPUTE_ERRORS=0; fi
 if [ "$UPDATE_HEIGHT"  = "" ]; then UPDATE_HEIGHT=0;  fi
@@ -88,9 +87,9 @@ status=$?
 # Must check the exit status and not continue if the above command failed
 if [ "$status" -ne 0 ]; then exit; fi
 
-# The files $imagesList and $tilesList must exist after the initial setup run
+# The files $imagesList and $albedoTilesList must exist after the initial setup run
 if [ ! -f "$imagesList" ]; then echo "ERROR: File $imagesList does not exist."; exit; fi
-if [ ! -f "$tilesList"  ]; then echo "ERROR: File $tilesList does not exist.";  exit; fi
+if [ ! -f "$albedoTilesList"  ]; then echo "ERROR: File $albedoTilesList does not exist.";  exit; fi
 
 # If $TAG is not empty, create the albedo only for the specified mission (AS15, AS16, AS17).
 if [ "$TAG" != "" ]; then 
@@ -98,8 +97,8 @@ if [ "$TAG" != "" ]; then
 fi
 
 # Create the list of drg images and tiles as expected by reconstruct.cc.
-DRG_FILES=$(cat $imagesList | awk '{print $2}')
-TILE_FILES=$(cat $tilesList | awk '{print $2}')
+DRG_FILES=$( cat $imagesList      | awk '{print $2}')
+TILE_FILES=$(cat $albedoTilesList | awk '{print $2}')
 
 numIter=$(perl -e "print 5 + 4*$MAX_NUM_ITER")
 if [ "$numIter" = "" ]; then echo "The value of MAX_NUM_ITER is invalid"; exit; fi
@@ -166,13 +165,12 @@ for ((i = 1; i <= $numIter; i++)); do
     # Run all jobs for the current stage
     image="{}" # will be filled in by xarg
     run="$reconstruct $options $overrideOptions -i $image"
-    echo Will run $run in iteration $i out of $numIter
     # The 'xargs' and 'parallel' commands expect different formats
     if [ "$useSuperComp" -eq 1 ]; then
         currDir=$(pwd)
-        echo $VALS | perl -pi -e "s#\s+#\n#g" | parallel -P $numProc -u --sshloginfile $PBS_NODEFILE "cd $currDir; $run"
+        echo $VALS | perl -pi -e "s#\s+#\n#g" | parallel -P $NUM_PROCESSES -u --sshloginfile $PBS_NODEFILE "cd $currDir; $run"
     else
-        xargs="xargs -n 1 -P $numProc -I {} $run"
+        xargs="xargs -n 1 -P $NUM_PROCESSES -I {} $run"
         echo $VALS | perl -pi -e "s#\s+#\n#g" | $xargs
     fi
     
@@ -199,7 +197,6 @@ if [ $useSuperComp -eq 0 ]; then
     # Build a vrt as a workaround to the bug in image2qtree
     # which makes it not be able to handle more than 1000 images.
     gdalbuildvrt $tilesVrt $shoDir/*.tif
-    echo $VISION_WORKBENCH_PATH/image2qtree -m kml $tilesVrt -o $shoDir
-    $VISION_WORKBENCH_PATH/image2qtree -m kml $tilesVrt -o $shoDir
+    $image2qtree -m kml $tilesVrt -o $shoDir
 fi
 

@@ -7,8 +7,8 @@
 
 /// \file Exposure.h
 
-#ifndef __VW_PHOTOMETRY_EXPOSURE_H__
-#define __VW_PHOTOMETRY_EXPOSURE_H__
+#ifndef __PHOTOMETRY_EXPOSURE_H__
+#define __PHOTOMETRY_EXPOSURE_H__
 
 #include <string>
 #include <vector>
@@ -34,4 +34,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_EXPOSURE_H__
+#endif//__PHOTOMETRY_EXPOSURE_H__

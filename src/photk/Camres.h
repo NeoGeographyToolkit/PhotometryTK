@@ -7,8 +7,8 @@
 
 /// \file Camres.h
 
-#ifndef __VW_PHOTOMETRY_CAMRES_H__
-#define __VW_PHOTOMETRY_CAMRES_H__
+#ifndef __PHOTOMETRY_CAMRES_H__
+#define __PHOTOMETRY_CAMRES_H__
 
 #include <string>
 #include <vector>
@@ -19,4 +19,4 @@ namespace photometry {
 
 } // photometry
 
-#endif//__VW_PHOTOMETRY_CAMRES_H__
+#endif//__PHOTOMETRY_CAMRES_H__

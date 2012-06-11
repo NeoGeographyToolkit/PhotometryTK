@@ -566,13 +566,12 @@ namespace {
 
 double
 photometry::actOnTile(bool isLastIter, bool computeErrors,
-                          std::string blankTileFile,
-                          std::string DEMTileFile,   std::string albedoTileFile,
-                          std::string errorTileFile, std::string weightsSumFile,
-                          std::vector<ModelParams> & overlap_img_params,
-                          GlobalParams globalParams,
-                          phaseCoeffsData & PCD
-                          ){
+                      std::string DEMTileFile,   std::string albedoTileFile,
+                      std::string errorTileFile, std::string weightsSumFile,
+                      std::vector<ModelParams> & overlap_img_params,
+                      GlobalParams globalParams,
+                      phaseCoeffsData & PCD
+                      ){
 
   // Perform one of the several calculations for the given tile:
 
@@ -608,14 +607,13 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
   // the boundary).
   double costFunVal = 0.0;
 
-  DiskImageView<PixelMask<PixelGray<uint8> > >  blankTile(blankTileFile);
-  std::cout << "Reading " << blankTileFile << std::endl;
-  ImageView<PixelMask<PixelGray<float> > > albedoTile(blankTile.cols(), blankTile.rows());
+  std::cout << "Reading " << albedoTileFile << std::endl;
+  ImageView<PixelMask<PixelGray<float> > > albedoTile = copy(DiskImageView<PixelMask<PixelGray<uint8> > > (albedoTileFile));
   GeoReference albedoTile_geo;
-  read_georeference(albedoTile_geo, blankTileFile);
+  read_georeference(albedoTile_geo, albedoTileFile);
 
   ImageView<float> weightsSum;
-  if (globalParams.useNormalizedWeights && !globalParams.computeWeightsSum){
+  if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum){
     // The weights were already summed up. Read them.
     weightsSum = copy(DiskImageView<float>(weightsSumFile));
   }
@@ -634,14 +632,14 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
     }
       
     photometry::computeXYZandSurfaceNormal(DEMTile.impl(), DEMGeo, noDEMDataValue,
-                                               dem_xyz, surface_normal
-                                               );
+                                           dem_xyz, surface_normal
+                                           );
   }
     
   ImageView<float> norm(albedoTile.cols(), albedoTile.rows());
   GeoReference weightsSum_geo;
-  if (globalParams.useNormalizedWeights && globalParams.computeWeightsSum){
-    read_georeference(weightsSum_geo, blankTileFile);
+  if (globalParams.useNormalizedCostFun && globalParams.computeWeightsSum){
+    read_georeference(weightsSum_geo, albedoTileFile);
   }
 
   //initialize  albedoTile
@@ -678,8 +676,8 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
   ImageView<PixelMask<PixelGray<float> > > errorTile;
   GeoReference errorTile_geo;
   if (computeErrors){
-    read_georeference(errorTile_geo, blankTileFile);
-    errorTile.set_size(blankTile.cols(), blankTile.rows());
+    read_georeference(errorTile_geo, albedoTileFile);
+    errorTile.set_size(albedoTile.cols(), albedoTile.rows());
     for (int k = 0 ; k < errorTile.rows(); ++k) {
       for (int l = 0; l < errorTile.cols(); ++l) {
         errorTile(l, k) = 0;
@@ -712,8 +710,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
     // Read the weights only if really needed
     bool useWeights = (globalParams.useWeights != 0);
     if (useWeights){
-      bool useTiles = true;
-      ReadWeightsParamsFromFile(useTiles, &overlap_img_params[i]);
+      ReadWeightsParamsFromFile(overlap_img_params[i]);
     }
 
     // The georeference for the entire overlap image
@@ -793,7 +790,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
 
         Vector2 lon_lat = albedoTile_geo.pixel_to_lonlat(albedoTile_pix);
               
-        if (globalParams.useNormalizedWeights && !globalParams.computeWeightsSum && weightsSum(l, k) == 0) continue;
+        if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum && weightsSum(l, k) == 0) continue;
         
         double weight = 1.0;
         if (useWeights){
@@ -805,7 +802,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
         if (weight == 0.0) continue;
 
         // Normalize to ensure that all weights for all images at given pixel add up to 1
-        if (globalParams.useNormalizedWeights && !globalParams.computeWeightsSum) weight /= weightsSum(l, k);
+        if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum) weight /= weightsSum(l, k);
 
         //check for overlap between the output image and the input DEM image
         Vector2 overlap_pix = overlap_geo.lonlat_to_pixel(lon_lat);
@@ -855,7 +852,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
         
         if (globalParams.computeWeightsSum){
 
-          if (globalParams.useNormalizedWeights) norm(l,k) = norm(l,k) + weight;
+          if (globalParams.useNormalizedCostFun) norm(l,k) = norm(l,k) + weight;
 
         }else if (globalParams.initAlbedo){
           
@@ -916,7 +913,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
   // Nothing else to do if all we care about is updating the phase coefficients
   if (globalParams.updateTilePhaseCoeffs) return costFunVal;
 
-  if (globalParams.useNormalizedWeights && globalParams.computeWeightsSum){
+  if (globalParams.useNormalizedCostFun && globalParams.computeWeightsSum){
     std::cout << "Writing: " << weightsSumFile << std::endl;
     write_georeferenced_image(weightsSumFile,
                               norm,
@@ -975,7 +972,7 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
       for (int k = 0; k < albedoTile.rows(); ++k) {
         for (int l = 0; l < albedoTile.cols(); ++l) {
           if ( is_valid(albedoTile(l, k)) ) albedoTile(l, k)
-                                              = (double)albedoTile(l, k)*(1 + globalParams.phaseCoeffA2);
+            = (double)albedoTile(l, k)*(1 + globalParams.phaseCoeffA2);
         }
       }
     }
@@ -1000,10 +997,10 @@ photometry::actOnTile(bool isLastIter, bool computeErrors,
     }
   }
   if (numValid > 0){
-  std::cout << "Writing: " << albedoTileFile << std::endl;
-  write_georeferenced_image(albedoTileFile,
-                            channel_cast<uint8>(clamp(albedoTile, 0.0, 255.0)),
-                            albedoTile_geo, TerminalProgressCallback("{Core}","Processing:"));
+    std::cout << "Writing: " << albedoTileFile << std::endl;
+    write_georeferenced_image(albedoTileFile,
+                              channel_cast<uint8>(clamp(albedoTile, 0.0, 255.0)),
+                              albedoTile_geo, TerminalProgressCallback("{Core}","Processing:"));
   }
   
   if (numValid > 0 && computeErrors){
@@ -1042,114 +1039,114 @@ void photometry::AppendCostFunToFile(double costFunVal, std::string fileName)
 //TO DO: build the version that does the blockwise processing to deal with large scale images
 void
 photometry::InitAlbedoMosaic(ModelParams input_img_params,
-                                 std::vector<ModelParams> overlap_img_params,
-                                 GlobalParams globalParams) {
+                             std::vector<ModelParams> overlap_img_params,
+                             GlobalParams globalParams) {
     
-    int i, l, k;
-    std::string input_img_file = input_img_params.inputFilename;
-    std::string reflectance_file = input_img_params.reliefFilename;
-    std::string shadow_file = input_img_params.shadowFilename;
-    std::string output_img_file = input_img_params.outputFilename;
+  int i, l, k;
+  std::string input_img_file = input_img_params.inputFilename;
+  std::string reflectance_file = input_img_params.reliefFilename;
+  std::string shadow_file = input_img_params.shadowFilename;
+  std::string output_img_file = input_img_params.outputFilename;
 
-    // Read the uint8 data from disk. Copy it to float, to be able to interpolate accurately.
-    ImageView<PixelMask<PixelGray<float> > > input_img
-      = copy(DiskImageView<PixelMask<PixelGray<uint8> > >(input_img_file));
-    GeoReference input_img_geo;
-    read_georeference(input_img_geo, input_img_file);
+  // Read the uint8 data from disk. Copy it to float, to be able to interpolate accurately.
+  ImageView<PixelMask<PixelGray<float> > > input_img
+    = copy(DiskImageView<PixelMask<PixelGray<uint8> > >(input_img_file));
+  GeoReference input_img_geo;
+  read_georeference(input_img_geo, input_img_file);
 
-    DiskImageView<PixelMask<PixelGray<uint8> > > shadowImage(shadow_file);
+  DiskImageView<PixelMask<PixelGray<uint8> > > shadowImage(shadow_file);
     
-    DiskImageView<PixelMask<PixelGray<float> > > reflectance_image(reflectance_file);
-    GeoReference reflectance_geo;
-    read_georeference(reflectance_geo, reflectance_file);
-    InterpolationView<EdgeExtensionView<DiskImageView<PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
-      interp_reflectance_image = interpolate(reflectance_image.impl(), BilinearInterpolation(), ConstantEdgeExtension());
-    // Wrong below
-    //ImageViewRef<PixelMask<PixelGray<float> > >  interp_reflectance_image
-    //  = interpolate(edge_extend(reflectance_image.impl(), ConstantEdgeExtension()),
-    //                BilinearInterpolation());
+  DiskImageView<PixelMask<PixelGray<float> > > reflectance_image(reflectance_file);
+  GeoReference reflectance_geo;
+  read_georeference(reflectance_geo, reflectance_file);
+  InterpolationView<EdgeExtensionView<DiskImageView<PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
+    interp_reflectance_image = interpolate(reflectance_image.impl(), BilinearInterpolation(), ConstantEdgeExtension());
+  // Wrong below
+  //ImageViewRef<PixelMask<PixelGray<float> > >  interp_reflectance_image
+  //  = interpolate(edge_extend(reflectance_image.impl(), ConstantEdgeExtension()),
+  //                BilinearInterpolation());
 
-    ImageView<PixelMask<PixelGray<float> > > output_img (input_img.cols(), input_img.rows());
-    ImageView<PixelGray<int> > numSamples(input_img.cols(), input_img.rows());
-    ImageView<PixelGray<float> > norm(input_img.cols(), input_img.rows());
-    //ImageView<PixelGray<float> > weights_img(input_img.cols(), input_img.rows());
+  ImageView<PixelMask<PixelGray<float> > > output_img (input_img.cols(), input_img.rows());
+  ImageView<PixelGray<int> > numSamples(input_img.cols(), input_img.rows());
+  ImageView<PixelGray<float> > norm(input_img.cols(), input_img.rows());
+  //ImageView<PixelGray<float> > weights_img(input_img.cols(), input_img.rows());
  
-    //initialize  output_img, and numSamples
-    for (k = 0 ; k < input_img.rows(); ++k) {
-        for (l = 0; l < input_img.cols(); ++l) {
+  //initialize  output_img, and numSamples
+  for (k = 0 ; k < input_img.rows(); ++k) {
+    for (l = 0; l < input_img.cols(); ++l) {
 
-           numSamples(l, k) = 0;
-           Vector2 input_image_pix(l,k);
+      numSamples(l, k) = 0;
+      Vector2 input_image_pix(l,k);
           
-           if ( is_valid(input_img(l,k)) && ( shadowImage(l, k) == 0)) { //valid image point
+      if ( is_valid(input_img(l,k)) && ( shadowImage(l, k) == 0)) { //valid image point
 
-              //compute the local reflectance
+        //compute the local reflectance
             
-              Vector2 lon_lat = input_img_geo.pixel_to_lonlat(input_image_pix);
-              Vector2 reflectance_pix = reflectance_geo.lonlat_to_pixel(input_img_geo.pixel_to_lonlat(input_image_pix));
+        Vector2 lon_lat = input_img_geo.pixel_to_lonlat(input_image_pix);
+        Vector2 reflectance_pix = reflectance_geo.lonlat_to_pixel(input_img_geo.pixel_to_lonlat(input_image_pix));
 
-              float x = reflectance_pix[0];
-              float y = reflectance_pix[1];
+        float x = reflectance_pix[0];
+        float y = reflectance_pix[1];
              
-              //check for valid reflectance coordinates
-              if ((x>=0) && (x < reflectance_image.cols()) && (y>=0) && (y< reflectance_image.rows())){ //valid reflectance point  
+        //check for valid reflectance coordinates
+        if ((x>=0) && (x < reflectance_image.cols()) && (y>=0) && (y< reflectance_image.rows())){ //valid reflectance point  
                
-		if (is_valid(interp_reflectance_image(x,y))){
+          if (is_valid(interp_reflectance_image(x,y))){
                  
-                  float input_img_reflectance = interp_reflectance_image(x,y);
-                  if (input_img_reflectance != 0.0){
-                      if (globalParams.useWeights == 0){
-                          output_img(l, k) = (float)input_img(l,k)/(input_img_params.exposureTime*input_img_reflectance);
-                          numSamples(l, k) = 1;
-                      }
-                      else{
-                          float weight       = ComputeLineWeightsHV(input_image_pix, input_img_params);
-                          float exposureRefl = input_img_params.exposureTime*input_img_reflectance;
-
-                          // New averaging
-                          output_img(l, k)  = ((float)input_img(l,k))*exposureRefl*weight;
-                          norm(l, k)        = exposureRefl*exposureRefl*weight;
-
-                          // Old averaging
-                          //output_img(l, k) = ((float)input_img(l,k)*weight)/exposureRefl;
-                          //norm(l, k) = weight;
-                          
-                          numSamples(l, k)  = 1;
-                          //weights_img(l, k) = weight;
-
-                          
-                      }
-                  }
-                }
+            float input_img_reflectance = interp_reflectance_image(x,y);
+            if (input_img_reflectance != 0.0){
+              if (globalParams.useWeights == 0){
+                output_img(l, k) = (float)input_img(l,k)/(input_img_params.exposureTime*input_img_reflectance);
+                numSamples(l, k) = 1;
               }
-           }
+              else{
+                float weight       = ComputeLineWeightsHV(input_image_pix, input_img_params);
+                float exposureRefl = input_img_params.exposureTime*input_img_reflectance;
+
+                // New averaging
+                output_img(l, k)  = ((float)input_img(l,k))*exposureRefl*weight;
+                norm(l, k)        = exposureRefl*exposureRefl*weight;
+
+                // Old averaging
+                //output_img(l, k) = ((float)input_img(l,k)*weight)/exposureRefl;
+                //norm(l, k) = weight;
+                          
+                numSamples(l, k)  = 1;
+                //weights_img(l, k) = weight;
+
+                          
+              }
+            }
+          }
         }
+      }
     }
+  }
 
-    //for (k = 0 ; k < input_img.rows(); ++k) {
-    //  for (l = 0; l < input_img.cols(); ++l) {
-    //    float val = weights_img(l, k)[0];
-    //    weights_img(l, k) = std::min(255.0, val*155.0);
-    //  }
-    //}
+  //for (k = 0 ; k < input_img.rows(); ++k) {
+  //  for (l = 0; l < input_img.cols(); ++l) {
+  //    float val = weights_img(l, k)[0];
+  //    weights_img(l, k) = std::min(255.0, val*155.0);
+  //  }
+  //}
 
-    for (i = 0; i < (int)overlap_img_params.size(); i++){
+  for (i = 0; i < (int)overlap_img_params.size(); i++){
       
-      printf("overlap_img = %s\n", overlap_img_params[i].inputFilename.c_str());
+    printf("overlap_img = %s\n", overlap_img_params[i].inputFilename.c_str());
 
-      // Read the images from disk and copy them into float, to get higher precision
-      // when interpolating.
-      ImageView<PixelMask<PixelGray<float> > >  overlap_img
-        = copy(DiskImageView<PixelMask<PixelGray<uint8> > >(overlap_img_params[i].inputFilename));
-      InterpolationView<EdgeExtensionView<ImageView<PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
-        interp_overlap_img = interpolate(overlap_img, BilinearInterpolation(), ConstantEdgeExtension());
-      //DiskImageView<PixelMask<PixelGray<uint8> > >  overlap_img(overlap_img_params[i].inputFilename);
-      //ImageViewRef<PixelMask<PixelGray<uint8> > >  interp_overlap_img = interpolate(edge_extend(overlap_img.impl(),
-      //                                                                              ConstantEdgeExtension()),
-      //                                                                              BilinearInterpolation());
+    // Read the images from disk and copy them into float, to get higher precision
+    // when interpolating.
+    ImageView<PixelMask<PixelGray<float> > >  overlap_img
+      = copy(DiskImageView<PixelMask<PixelGray<uint8> > >(overlap_img_params[i].inputFilename));
+    InterpolationView<EdgeExtensionView<ImageView<PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
+      interp_overlap_img = interpolate(overlap_img, BilinearInterpolation(), ConstantEdgeExtension());
+    //DiskImageView<PixelMask<PixelGray<uint8> > >  overlap_img(overlap_img_params[i].inputFilename);
+    //ImageViewRef<PixelMask<PixelGray<uint8> > >  interp_overlap_img = interpolate(edge_extend(overlap_img.impl(),
+    //                                                                              ConstantEdgeExtension()),
+    //                                                                              BilinearInterpolation());
       
-      GeoReference overlap_geo;
-      read_georeference(overlap_geo, overlap_img_params[i].inputFilename);
+    GeoReference overlap_geo;
+    read_georeference(overlap_geo, overlap_img_params[i].inputFilename);
 
     std::string overlap_reflectance_file = overlap_img_params[i].reliefFilename;
     DiskImageView<PixelMask<PixelGray<float> > >   overlap_reflectance_image(overlap_reflectance_file);
@@ -1164,126 +1161,124 @@ photometry::InitAlbedoMosaic(ModelParams input_img_params,
 
     DiskImageView<PixelMask<PixelGray<uint8> > > overlap_shadow_image(overlap_img_params[i].shadowFilename);
     InterpolationView<EdgeExtensionView<DiskImageView<PixelMask<PixelGray<uint8> > >, ConstantEdgeExtension>, BilinearInterpolation>
-    interp_overlap_shadow_image = interpolate(overlap_shadow_image, BilinearInterpolation(), ConstantEdgeExtension());
+      interp_overlap_shadow_image = interpolate(overlap_shadow_image, BilinearInterpolation(), ConstantEdgeExtension());
     //ImageViewRef<PixelMask<PixelGray<uint8> > >  interp_overlap_shadow_image
     //  = interpolate(edge_extend(overlap_shadow_image.impl(), ConstantEdgeExtension()), BilinearInterpolation());
     
-      for (k = 0 ; k < input_img.rows(); ++k) {
-        for (l = 0; l < input_img.cols(); ++l) {
+    for (k = 0 ; k < input_img.rows(); ++k) {
+      for (l = 0; l < input_img.cols(); ++l) {
           
-          Vector2 input_img_pix(l,k);
+        Vector2 input_img_pix(l,k);
           
-          if ( is_valid(input_img(l,k)) ) {
+        if ( is_valid(input_img(l,k)) ) {
 
-              //get the corresponding overlap_reflectance value
-              Vector2 lon_lat = input_img_geo.pixel_to_lonlat(input_img_pix);
+          //get the corresponding overlap_reflectance value
+          Vector2 lon_lat = input_img_geo.pixel_to_lonlat(input_img_pix);
 	     
-              Vector2 overlap_reflectance_pix = overlap_reflectance_geo.lonlat_to_pixel(input_img_geo.pixel_to_lonlat(input_img_pix));
-              float x = overlap_reflectance_pix[0];
-              float y = overlap_reflectance_pix[1];
+          Vector2 overlap_reflectance_pix = overlap_reflectance_geo.lonlat_to_pixel(input_img_geo.pixel_to_lonlat(input_img_pix));
+          float x = overlap_reflectance_pix[0];
+          float y = overlap_reflectance_pix[1];
 
-              //check for valid overlap_reflectance_image coordinates
-              if ((x>=0) && (x < overlap_reflectance_image.cols()) && (y>=0) && (y< overlap_reflectance_image.rows())){
+          //check for valid overlap_reflectance_image coordinates
+          if ((x>=0) && (x < overlap_reflectance_image.cols()) && (y>=0) && (y< overlap_reflectance_image.rows())){
 	
-                if (is_valid(interp_overlap_reflectance_image(x,y))){
+            if (is_valid(interp_overlap_reflectance_image(x,y))){
                  
-                  //check for overlap between the output image and the input DEM image
-                  Vector2 overlap_pix = overlap_geo.lonlat_to_pixel(input_img_geo.pixel_to_lonlat(input_img_pix));
-                  float overlap_x = overlap_pix[0];
-                  float overlap_y = overlap_pix[1];
+              //check for overlap between the output image and the input DEM image
+              Vector2 overlap_pix = overlap_geo.lonlat_to_pixel(input_img_geo.pixel_to_lonlat(input_img_pix));
+              float overlap_x = overlap_pix[0];
+              float overlap_y = overlap_pix[1];
 
-                  //image dependent part of the code  - START
-                  PixelMask<PixelGray<float> > overlap_img_pixel = interp_overlap_img(overlap_x, overlap_y);
+              //image dependent part of the code  - START
+              PixelMask<PixelGray<float> > overlap_img_pixel = interp_overlap_img(overlap_x, overlap_y);
 
-                  //check for valid overlap_img coordinates
-                  //TO DO: remove shadow pixels in the overlap_img.
-                  if ((overlap_x>=0) && (overlap_x < overlap_img.cols()) && (overlap_y >= 0) && (overlap_y< overlap_img.rows()) && (interp_overlap_shadow_image(x, y) == 0)){
+              //check for valid overlap_img coordinates
+              //TO DO: remove shadow pixels in the overlap_img.
+              if ((overlap_x>=0) && (overlap_x < overlap_img.cols()) && (overlap_y >= 0) && (overlap_y< overlap_img.rows()) && (interp_overlap_shadow_image(x, y) == 0)){
 
-                    if ( is_valid(overlap_img_pixel) ) { //common area between input_img and overlap_img
+                if ( is_valid(overlap_img_pixel) ) { //common area between input_img and overlap_img
 
-                      float overlap_img_reflectance = interp_overlap_reflectance_image(x,y);
+                  float overlap_img_reflectance = interp_overlap_reflectance_image(x,y);
 
-                      if (overlap_img_reflectance != 0.0){
-                          if (globalParams.useWeights == 0){
-                              output_img(l, k) = (float)output_img(l, k) + (float)overlap_img_pixel/(overlap_img_params[i].exposureTime*overlap_img_reflectance);
-                              numSamples(l, k) = numSamples(l,k) + 1;
-                          }
-                          else{
-                            float weight       = ComputeLineWeightsHV(overlap_pix, overlap_img_params[i]);
-                            float exposureRefl = overlap_img_params[i].exposureTime*overlap_img_reflectance;
+                  if (overlap_img_reflectance != 0.0){
+                    if (globalParams.useWeights == 0){
+                      output_img(l, k) = (float)output_img(l, k) + (float)overlap_img_pixel/(overlap_img_params[i].exposureTime*overlap_img_reflectance);
+                      numSamples(l, k) = numSamples(l,k) + 1;
+                    }
+                    else{
+                      float weight       = ComputeLineWeightsHV(overlap_pix, overlap_img_params[i]);
+                      float exposureRefl = overlap_img_params[i].exposureTime*overlap_img_reflectance;
 
-                            //New averaging
-                            output_img(l, k) = (float)output_img(l, k) + (float)overlap_img_pixel*exposureRefl*weight;
-                            norm(l,k)        = norm(l,k) + exposureRefl*exposureRefl*weight;
+                      //New averaging
+                      output_img(l, k) = (float)output_img(l, k) + (float)overlap_img_pixel*exposureRefl*weight;
+                      norm(l,k)        = norm(l,k) + exposureRefl*exposureRefl*weight;
                             
-                            // Old averaging
-                            //output_img(l, k) = (float)output_img(l, k)
-                            // + ((float)overlap_img_pixel*weight)/ exposureRefl;
-                            //norm(l,k) = norm(l,k) + weight;
+                      // Old averaging
+                      //output_img(l, k) = (float)output_img(l, k)
+                      // + ((float)overlap_img_pixel*weight)/ exposureRefl;
+                      //norm(l,k) = norm(l,k) + weight;
                             
-                            numSamples(l, k) = numSamples(l,k) + 1;
+                      numSamples(l, k) = numSamples(l,k) + 1;
 
 
-                          }
-                      }
+                    }
+                  }
 
-                    }//if
-                  }//if
+                }//if
+              }//if
 
-                  //image dependent part of the code  - END
-               }
-             }
+              //image dependent part of the code  - END
+            }
           }
         }
       }
     }
+  }
 
-    //compute the mean albedo value
-    int numValid = 0;
-    for (k = 0 ; k < input_img.rows(); ++k) {
-       for (l = 0; l < input_img.cols(); ++l) {
+  //compute the mean albedo value
+  int numValid = 0;
+  for (k = 0 ; k < input_img.rows(); ++k) {
+    for (l = 0; l < input_img.cols(); ++l) {
 
-         //output_img(l,k).invalidate();
+      //output_img(l,k).invalidate();
 
-         if ( (is_valid(input_img(l,k))) && (numSamples(l, k)!=0) ) {
+      if ( (is_valid(input_img(l,k))) && (numSamples(l, k)!=0) ) {
 
-              output_img(l,k).validate();
+        output_img(l,k).validate();
 
-              if (globalParams.useWeights == 0){
-                  output_img(l, k) = output_img(l, k)/numSamples(l,k);
-              }
-              else{
-		output_img(l, k) = output_img(l, k)/norm(l,k);
-              }
-	      numValid++;
-         }
+        if (globalParams.useWeights == 0){
+          output_img(l, k) = output_img(l, k)/numSamples(l,k);
+        }
+        else{
+          output_img(l, k) = output_img(l, k)/norm(l,k);
+        }
+        numValid++;
+      }
          
-       }
     }
+  }
 
-   printf("numValid = %d, total = %d\n", numValid, input_img.rows()*input_img.cols());
+  printf("numValid = %d, total = %d\n", numValid, input_img.rows()*input_img.cols());
 
-    //TODO: compute the albedo variance (standard deviation)
+  //TODO: compute the albedo variance (standard deviation)
    
-//write in the albedo image
-    std::cout << "Writing: " << output_img_file << std::endl;
-    write_georeferenced_image(output_img_file,
-                              channel_cast<uint8>(clamp(output_img,0.0,255.0)),
-                              input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
-    //write_georeferenced_image(output_img_file,
-    //                          output_img,
-    //                          input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
-    //std::string weights_file = output_img_file, str2 = "DRG";
-    //weights_file.replace(weights_file.find(str2),str2.length(),"wt");
-    //std::cout << "Writing the weights to "  <<  weights_file << std::endl;
-    //write_georeferenced_image(weights_file,
-    //                          channel_cast<uint8>(clamp(weights_img,0.0,255.0)),
-    //                          input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
+  //write in the albedo image
+  std::cout << "Writing: " << output_img_file << std::endl;
+  write_georeferenced_image(output_img_file,
+                            channel_cast<uint8>(clamp(output_img,0.0,255.0)),
+                            input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
+  //write_georeferenced_image(output_img_file,
+  //                          output_img,
+  //                          input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
+  //std::string weights_file = output_img_file, str2 = "DRG";
+  //weights_file.replace(weights_file.find(str2),str2.length(),"wt");
+  //std::cout << "Writing the weights to "  <<  weights_file << std::endl;
+  //write_georeferenced_image(weights_file,
+  //                          channel_cast<uint8>(clamp(weights_img,0.0,255.0)),
+  //                          input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
     
 
 }
-
-
 
 //writes the current albedo of the current image in the area of overlap with the previous mage
 //writes the previous albedo in the area of overlap with the current image

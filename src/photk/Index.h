@@ -7,8 +7,8 @@
 
 /// \file Index.h
 
-#ifndef __VW_PHOTOMETRY_INDEX_H__
-#define __VW_PHOTOMETRY_INDEX_H__
+#ifndef __PHOTOMETRY_INDEX_H__
+#define __PHOTOMETRY_INDEX_H__
 
 #include <vector>
 #include <string>
@@ -19,4 +19,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_INDEX_H__
+#endif//__PHOTOMETRY_INDEX_H__

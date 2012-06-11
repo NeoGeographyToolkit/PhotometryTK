@@ -190,7 +190,7 @@ void photometry::InitDEM( ModelParams input_img_params,
 }
 
 //initializes the DEM tile
-void photometry::InitMeanDEMTile(std::string blankTileFile,
+void photometry::InitMeanDEMTile(std::string albedoTileFile,
                                      std::string meanDEMTileFile,
                                      std::vector<ImageRecord> & DEMImages,
                                      std::vector<int> & overlap,
@@ -210,14 +210,17 @@ void photometry::InitMeanDEMTile(std::string blankTileFile,
     noDEMDataValue = globalParams.noDEMDataValue;
   }
   std::cout << "using noDEMDataValue: " << noDEMDataValue << std::endl;
-  
-  DiskImageView< PixelGray<float> >  blankTile(blankTileFile);
+
+  // The albedo was not computed yet, but we have already created the albedo tiles
+  // with georeference but no pixel values. The DEM tiles will have the same
+  // dimensions/georeference as hte albedo tiles.
+  DiskImageView< PixelGray<float> >  albedoTile(albedoTileFile);
   GeoReference DEMTileGeo;
-  read_georeference(DEMTileGeo, blankTileFile);
-  std::cout << "Reading " << blankTileFile << std::endl;
+  read_georeference(DEMTileGeo, albedoTileFile);
+  std::cout << "Reading " << albedoTileFile << std::endl;
 
   // The final result after interpolation will go here.
-  ImageView<PixelGray<float> > meanDEMTile(blankTile.cols(), blankTile.rows());
+  ImageView<PixelGray<float> > meanDEMTile(albedoTile.cols(), albedoTile.rows());
   for (int k = 0 ; k < (int)meanDEMTile.rows(); ++k) {
     for (int l = 0; l < (int)meanDEMTile.cols(); ++l) {
       meanDEMTile(l, k) = noDEMDataValue;

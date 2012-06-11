@@ -5,6 +5,7 @@ SUN_POSITION_FILE         meta/sunpos.txt
 SPACECRAFT_POSITION_FILE  meta/spacecraftpos.txt
 
 # Constants
+NUM_PROCESSES             8
 TILE_SIZE                 4.0
 SIMULATION_BOX            6 : 10 : -10 : -9 # lon_min:lon_max:lat_min:lat_max
 REFLECTANCE_TYPE          2
@@ -18,7 +19,7 @@ NO_DEM_DATA_VAL           -32767
 
 # Actions
 USE_WEIGHTS               1
-USE_NORMALIZED_WEIGHTS    1
+USE_NORMALIZED_COST_FUN   1
 COMPUTE_ERRORS            1
 
 # Parameters controlling the flow. Normally

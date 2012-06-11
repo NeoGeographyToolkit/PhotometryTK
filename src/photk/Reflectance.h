@@ -7,8 +7,8 @@
 
 /// \file Reflectance.h
 
-#ifndef __VW_PHOTOMETRY_REFLECTANCE_H__
-#define __VW_PHOTOMETRY_REFLECTANCE_H__
+#ifndef __PHOTOMETRY_REFLECTANCE_H__
+#define __PHOTOMETRY_REFLECTANCE_H__
 
 #ifdef _MSC_VER
 #pragma warning(disable:4244)
@@ -79,7 +79,7 @@ namespace photometry {
                    std::vector<ImageRecord> & weightsSumTiles,
                    std::vector<int> & overlap,
                    ModelParams & input_img_params,
-                   std::string maskedImgFile, GlobalParams const& globalParams);
+                   GlobalParams const& globalParams);
   
   float computeImageReflectanceNoWrite(ModelParams const& input_img_params,
                                        GlobalParams const& globalParams,
@@ -87,4 +87,4 @@ namespace photometry {
 
 }
 
-#endif//__VW_PHOTOMETRY_REFLECTANCE_H__
+#endif//__PHOTOMETRY_REFLECTANCE_H__

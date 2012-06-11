@@ -7,8 +7,8 @@
 
 /// \file Shape.h
 
-#ifndef __VW_PHOTOMETRY_SHAPE_H__
-#define __VW_PHOTOMETRY_SHAPE_H__
+#ifndef __PHOTOMETRY_SHAPE_H__
+#define __PHOTOMETRY_SHAPE_H__
 
 #include <iostream>
 #include <fstream>
@@ -25,7 +25,7 @@ namespace photometry {
   void InitDEM(ModelParams input_img_params,
                std::vector<ModelParams> overlap_img_params,
                GlobalParams globalParams);
-  void InitMeanDEMTile(std::string blankTileFile,
+  void InitMeanDEMTile(std::string albedoTileFile,
                        std::string meanDEMTileFile,
                        std::vector<ImageRecord> & DEMImages,
                        std::vector<int> & overlap,
@@ -40,4 +40,4 @@ namespace photometry {
 
 } // end photometry
 
-#endif//__VW_PHOTOMETRY_SHAPE_H__
+#endif//__PHOTOMETRY_SHAPE_H__

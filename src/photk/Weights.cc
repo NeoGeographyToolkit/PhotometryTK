@@ -462,7 +462,7 @@ photometry::ComputeLineWeightsHV(Vector2 const& pix, struct ModelParams const& m
 
 // Saves weights to file.
 void 
-photometry::SaveWeightsParamsToFile(bool useTiles, struct ModelParams const& modelParams)
+photometry::SaveWeightsParamsToFile(struct ModelParams const& modelParams)
 {
 
   FILE *fp;
@@ -490,102 +490,43 @@ photometry::SaveWeightsParamsToFile(bool useTiles, struct ModelParams const& mod
   }
   fprintf(fp,"\n");
 
-  // We don't need the weights for the DEM if there are no tiles
-  if (useTiles){
-    fclose(fp);
-    return;
-  }
-  
-  // Horizontal DEM
-  DiskImageView<PixelGray<float> > dem(modelParams.DEMFilename);
-  for (int i = 0; i < (int)dem.rows(); i++){
-      fprintf(fp, "%d ", modelParams.hCenterLineDEM[i]);
-  }
-  fprintf(fp, "\n");
-  for (int i = 0; i < (int)dem.rows(); i++){
-      fprintf(fp, "%d ", modelParams.hMaxDistArrayDEM[i]);
-  }
-  fprintf (fp, "\n");
-
-  // Vertical DEM
-  for (int i = 0; i < (int)dem.cols(); i++){
-      fprintf(fp, "%d ", modelParams.vCenterLineDEM[i]);
-  }
-  fprintf(fp, "\n");
-  for (int i = 0; i < (int)dem.cols(); i++){
-      fprintf(fp, "%d ", modelParams.vMaxDistArrayDEM[i]);
-  }
-  fprintf (fp, "\n");
-  
   fclose(fp);
 }
 
 void 
-photometry::ReadWeightsParamsFromFile(bool useTiles, struct ModelParams *modelParams)
-{
+photometry::ReadWeightsParamsFromFile(struct ModelParams & modelParams){
   FILE *fp;
 
-  std::cout << "Reading: " << modelParams->weightFilename << std::endl;
-  fp = fopen((char*)(modelParams->weightFilename).c_str(), "r");
+  std::cout << "Reading: " << modelParams.weightFilename << std::endl;
+  fp = fopen((char*)(modelParams.weightFilename).c_str(), "r");
   if (fp==NULL){
     return;
   }
 
   // Horizontal DRG
-  DiskImageView<PixelMask<PixelGray<uint8> > > drg(modelParams->inputFilename);
-  modelParams->hCenterLine.resize(drg.rows());
-  modelParams->hMaxDistArray.resize(drg.rows());
+  DiskImageView<PixelMask<PixelGray<uint8> > > drg(modelParams.inputFilename);
+  modelParams.hCenterLine.resize(drg.rows());
+  modelParams.hMaxDistArray.resize(drg.rows());
   for (int i = 0; i < (int)drg.rows(); i++){
-    fscanf(fp, "%d ", &(modelParams->hCenterLine[i]));
+    fscanf(fp, "%d ", &(modelParams.hCenterLine[i]));
   }
   fscanf(fp, "\n");
   for (int i = 0; i < (int)drg.rows(); i++){
-    fscanf(fp, "%d ", &(modelParams->hMaxDistArray[i]));
+    fscanf(fp, "%d ", &(modelParams.hMaxDistArray[i]));
   }
   fscanf(fp,"\n");
 
   // Vertical DRG
-  modelParams->vCenterLine.resize(drg.cols());
-  modelParams->vMaxDistArray.resize(drg.cols());
+  modelParams.vCenterLine.resize(drg.cols());
+  modelParams.vMaxDistArray.resize(drg.cols());
   for (int i = 0; i < (int)drg.cols(); i++){
-    fscanf(fp, "%d ", &(modelParams->vCenterLine[i]));
+    fscanf(fp, "%d ", &(modelParams.vCenterLine[i]));
   }
   fscanf(fp, "\n");
   for (int i = 0; i < (int)drg.cols(); i++){
-    fscanf(fp, "%d ", &(modelParams->vMaxDistArray[i]));
+    fscanf(fp, "%d ", &(modelParams.vMaxDistArray[i]));
   }
   fscanf(fp,"\n");
-
-  // We don't need the weights for the DEM if there are no tiles
-  if (useTiles){
-    fclose(fp);
-    return;
-  }
-    
-  // Horizontal DEM
-  DiskImageView<PixelGray<float> >  dem(modelParams->DEMFilename);
-  modelParams->hCenterLineDEM   = new int[dem.rows()];
-  modelParams->hMaxDistArrayDEM = new int[dem.rows()];
-  for (int i = 0; i < (int)dem.rows(); i++){
-    fscanf(fp, "%d ", &(modelParams->hCenterLineDEM[i]));
-  }
-  fscanf(fp, "\n");
-  for (int i = 0; i < (int)dem.rows(); i++){
-    fscanf(fp, "%d ", &(modelParams->hMaxDistArrayDEM[i]));
-  }
-  fscanf (fp, "\n");
-  
-  // Vertical DEM
-  modelParams->vCenterLineDEM   = new int[dem.cols()];
-  modelParams->vMaxDistArrayDEM = new int[dem.cols()];
-  for (int i = 0; i < (int)dem.cols(); i++){
-    fscanf(fp, "%d ", &(modelParams->vCenterLineDEM[i]));
-  }
-  fscanf(fp, "\n");
-  for (int i = 0; i < (int)dem.cols(); i++){
-    fscanf(fp, "%d ", &(modelParams->vMaxDistArrayDEM[i]));
-  }
-  fscanf (fp, "\n");
 
   fclose(fp);
   

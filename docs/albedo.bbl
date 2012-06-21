@@ -1,0 +1,33 @@
+\begin{thebibliography}{3}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Broxton et~al.(2009{\natexlab{a}})Broxton, Moratto, Nefian, Bunte, and
+  Robinson]{broxton09:preliminary}
+M.~J. Broxton, Z.~M. Moratto, A.~Nefian, M.~Bunte, and M.~S. Robinson.
+\newblock {Preliminary Stereo Reconstruction from Apollo 15 Metric Camera
+  Imagery}.
+\newblock \emph{40th Lunar and Planetary Science Conference},
+  2009{\natexlab{a}}.
+
+\bibitem[Nefian et~al.(2009)Nefian, Husmann, Broxton, To, Lundy, and
+  Hancher]{nefian09:bayesian}
+Ara~V. Nefian, Kyle Husmann, Michael~J. Broxton, Vinh To, Michael Lundy, and
+  Matthew Hancher.
+\newblock {A Bayesian Formulation for Sub-pixel Refinement in Stereo Orbital
+  Imagery}.
+\newblock \emph{IEEE International Conference on Image Processing}, 85,
+  November 2009.
+
+\bibitem[Broxton et~al.(2009{\natexlab{b}})Broxton, Nefian, Moratto, Kim,
+  Lundy, and Segal]{broxton09:3D}
+Michael~J. Broxton, Ara~V. Nefian, Zachary Moratto, Taemin Kim, Michael Lundy,
+  and Aleksandr~V. Segal.
+\newblock {3D Lunar Terrain Reconstruction from Apollo Images}.
+\newblock \emph{International Symposium on Visual Computing},
+  2009{\natexlab{b}}.
+
+\end{thebibliography}

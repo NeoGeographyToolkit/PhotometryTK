@@ -49,13 +49,13 @@
 
 % With the book style a new chapter always starts on an odd page. If
 % the previous page is empty, the above code ensures that it is of
-% \pagestyle{plain}.
-\pagestyle{fancy}
-\fancyhf{}
+%\pagestyle{plain}.
+%\pagestyle{fancy}
+%\fancyhf{}
 %\renewcommand{\chaptermark}[1]{\markboth{ \emph{#1}}{}}
-\fancyhead[LO]{}
-\fancyhead[RE]{\leftmark}
-\fancyfoot[LE,RO]{\thepage}
+% \fancyhead[]{}
+% \fancyhead[RE]{}
+%\fancyfoot[LE,RO]{\thepage}
 
 % Dutch style of paragraph formatting, i.e. no indents.
 \setlength{\parskip}{1.3ex plus 0.2ex minus 0.2ex}
@@ -81,8 +81,8 @@
 % }
 
 \title{{\Huge Ames Albedo Reconstruction Software}\\
-{\em A part of the NASA NeoGeography Toolkit}\\
-Version 0.2}
+{\em Part of the NASA NeoGeography Toolkit}\\
+Version 0.1}
 
 \author{
 Ara Nefian\\
@@ -95,6 +95,8 @@ NASA Ames Research Center\\
 
 \setcounter{chapter}{1} 
 \renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thefigure}{\arabic{figure}}
+\renewcommand{\theequation}{\arabic{equation}}
 
 \begin{document}
 
@@ -111,9 +113,7 @@ NASA Ames Research Center\\
 
 \newpage
 
-
-
-\section{The albedo software inputs and outputs}\label{inputs_outputs}
+\section{Overview}\label{overview}
 
 The albedo reconstruction software takes the following inputs:
 \begin{enumerate}
@@ -125,67 +125,66 @@ The albedo reconstruction software takes the following inputs:
 
 The algorithm uses the Sun/spacecraft position and DEM data to
 correct for the illumination conditions in the DRG images, thus
-computing Moon's true albedo. The output will be a set of
-non-overlapping DRG tiles containing the albedo.
+computing Moon's true albedo. 
 
 In addition to creating albedo images, the software can also be used
 for generating image mosaics (see the parameter REFLECTANCE\_TYPE in
 section \ref{settings}). In that case, the DEM images and Sun/spacecraft positions are
 not required.
 
-\section{Using the software}
+\section{Using the albedo software and the output}
 
-The albedo reconstruction software can be called by using the
-script {\it reconstruct.sh} in the directory PhotometryTK/src/tools. It is
-used as follows:
+The albedo reconstruction software can be called by using the script
+{\it reconstruct.sh} in the directory PhotometryTK/src/tools. This
+script requires that Vision Workbench and PhotometryTK be complied (see
+the installation notes of these two packages for instructions). The
+script needs to be edited to specify the path to these packages.
 
-reconstruct.sh setings.txt labelStr
+The script is called as follows:
 
-Here, setings.txt is the settings file (section \ref{settings}), and
-labelStr is a string label. All outputs of running this command will be
-stored in the directory albedo\_labelStr.
+reconstruct.sh settings.txt labelStr
 
-Using this script requires that Vision Workbench and PhotometryTK be
-complied (see the installation notes of these two packages for
-instructions). The script reconstruct.sh needs to be edited to specify the 
-path to these packages.
+Here, {\it settings.txt} is the settings file (section \ref{settings}), and
+{\it labelStr} is a string label. The output of running this command will be
+stored in the directory {\it albedo\_labelStr}. This directory will have several subdirectories, with the following names and data:
 
-The output albedo will go to the directory
-albedo\_labelStr/albedo. The output will be a set of image tiles, with each
-pixel being uint8 (the same as the input DRG images).
+\begin{itemize}
+\item {\it albedo} --  a set of albedo tiles in the GeoTIFF format with pixel values between 0 and 255; the size of the tiles is specified in the settings file (section \ref{settings})
+\item {\it albedo\_sub4} -- the albedo tiles at 1/4th the original resolution, together with a kml tree at this resolution that can be visualized in Google Earth\footnote{This directory is not generated when the software is run on multiple machines (section \ref{supercomp}) as kml generation is hard to parallelise and is best done offline.}
+\item {\it error} --  the error map for each albedo tile (if
+  COMPUTE\_ERRORS is set to 1, see section \ref{settings})
+\item {\it DEM} --  the averaged DEM values for each albedo tile
+\item {\it exposure} --  the estimated exposure time for each input DRG
+  image (section \ref{algorithm})
+\item {\it weight} --  the weights for each image
+\end{itemize}
 
-The exposure time for each image computed during albedo reconstruction is
-stored in the directory albedo\_labelStr/exposure. Other subdirectories
-in albedo\_labelStr contain data used for intermediate computations,
-such as the weights assigned to each pixel in the DRG images, the averaged DEM in each
-tile, etc.
+\section{Sample runs}\label{samples}
 
-\section{Example runs}
-
-Two {\it example runs} (settings files and other necessary input data)
+Two {\it sample runs} (settings files and other necessary input data)
 are available in the directory PhotometryTK/src/photk/tests. They are executed automatically if the user
 runs {\it make check} in PhotometryTK/build.
 
 
-\section{Running the software on multiple machines}
+\section{Running the software on multiple machines}\label{supercomp}
 
-The software can be distributed over a very large number of computing
-nodes (using GNU parallel), as long as those nodes share storage. The
+The albedo reconstruction software can be distributed over a very large number of computing
+nodes (using GNU parallel), as long as those nodes use the same filesystem. The
 computing nodes need to be specified in a file, with one machine name
-per line, and the enviromental variable PBS\_NODEFILE needs to be set to
-the path to this file. If this variable is not defined, the jobs are
-only run on the current machine. On NASA'S Pleiades Supercomputer the
-variable PBS\_NODEFILE is set automatically.
+per line, and the environmental variable PBS\_NODEFILE should be set to
+the path to this file. \footnote{On NASA's Pleiades Supercomputer the
+variable PBS\_NODEFILE is set automatically.} If this variable is not defined, the jobs are
+only run on the current machine. 
  
 The parameter NUM\_PROCESSES in the settings file (section \ref{settings}) can be used
 to control how many processes to start on a given computing node. This number depends
-on the number of cores available on the node, the amount of memory, and the resolution of the input images
-(higher resoluton requires more memory and therefore fewer processes can be run simultaneously on a current machine).
+on the number of cores available on the node, the amount of memory available, and the resolution of the input images
+(higher resolution requires more memory and therefore fewer processes can be run simultaneously on a node).
 
 \section{The settings file}\label{settings}
 
 The parameters controlling the albedo reconstruction software are specified in a
-settings file (a sample file is shown in the appendix). It has the following entries:
+settings file (a sample settings file is shown in the appendix). It has the following entries:
 
 \begin{longtable}{ l p{7cm} }
 DRG\_DIR & The path to the directory of DRG images. \\
@@ -197,8 +196,7 @@ SUN\_POSITION\_FILE  & The Sun position file.  \\
 SPACECRAFT\_POSITION\_FILE & The spacecraft position file.  \\
 \\
 NUM\_PROCESSES & How many simultaneous processes to start on a given
-computing node. This number is best set to the number of available cores on
-the node. \\
+computing node. \\
 \\
 TILE\_SIZE & Output albedo tile size, in degrees (usually 4 by 4 degrees). \\
 \\
@@ -214,7 +212,8 @@ reflectance model (Equation~\ref{reflectance}) is used.\\
 \\
 SHADOW\_THRESH    &         
  Shadow threshold, with values between 0 to 255 (the input DRG images
- have values between 0 to 255, see section \ref{requirements}). Its use depends on the variable SHADOW\_TYPE.
+ have values between 0 to 255, see section \ref{requirements}). Its
+ use depends on the parameter SHADOW\_TYPE.
 \\
 \\
 SHADOW\_TYPE & Determines how to classify which input DRG image pixels are in
@@ -227,7 +226,7 @@ exposure, and $t$ is the shadow threshold.}, 3 --
 analogous to option 2, but use the Lunar-Lambertian reflectance model (Equation~\ref{reflectance})
 instead of the Lambertian model.\\
 \\
-TR\_CONST & A constant which determines how bright the albeo will be, a larger value will make the albedo 
+TR\_CONST & A constant which determines how bright the albedo will be, a larger value will make the albedo 
 appear darker. \\
 \\
 PHASE\_COEFF\_C1  & The coefficient $c_1$ in reflectance formula (Equation~\ref{reflectance}).\\
@@ -235,7 +234,7 @@ PHASE\_COEFF\_C1  & The coefficient $c_1$ in reflectance formula (Equation~\ref{
 PHASE\_COEFF\_C2  & The coefficient $c_2$ in the same expression.\\
 \\
 MAX\_NUM\_ITER     &
-Maximum number of albedo update iterations. If it equals 0, the image
+Maximum number of albedo update iterations. If it is equal to 0, the image
 exposure, phase coefficients, and the albedo itself will only be
 initialized, and no subsequent iterations will take place to improve
 the initial values (see the algorithm in section \ref{algorithm}).\\ 
@@ -246,7 +245,7 @@ current pixel. This number is normally stored within the DEM images;
 only if it absent there will the value specified here be used.\\
 \\
 USE\_WEIGHTS &
- If to use weights to seamlessly blend the albedo values obtained for
+ If to use weights to seamlessly blend the albedo values obtained from
  individual images (1 means true, and 0 means false). See section \ref{algorithm}.\\
 \\
 USE\_NORMALIZED\_COST\_FUN &
@@ -267,7 +266,7 @@ COMPUTE\_ERRORS   &
 
 \section{Requirements for the input}\label{requirements}
 
-As mentioned in section \ref{inputs_outputs}, the inputs to the albedo reconstruction software are a set of DRG images, a set of DEM images, and the Sun and spacecraft position for each DRG image. Here we specify the exact requirements for the data as expected by the software.
+As mentioned in section \ref{overview}, the inputs to the albedo reconstruction software are a set of DRG images, a set of DEM images, and the Sun and spacecraft position for each DRG image. Here we specify the exact requirements for the data as expected by the software.
 
 \begin{enumerate}
 
@@ -282,12 +281,12 @@ format. They may or may not overlap. If the DEM images overlap, the
 values from all images at a given pixel will be averaged. It is expected
 that the DEM images are either in int16 or float format. If the
 images lack the No Data Value, it should be explicitly set in the
-settings file using the variable NO\_DEM\_DATA\_VAL.
+settings file using the parameter NO\_DEM\_DATA\_VAL (section \ref{settings}).
 
-\item The Sun positions for the DRG images should be provided as a list in
-  a file, with one line in the file for each DRG image. The same should
-  hold for the spacecraft position. Each line in these lists needs to
-  be in the format: 
+\item The Sun positions for the DRG images should be listed in a text file,
+ with one line in the file for each DRG image. The same should
+hold for the spacecraft position. Each line in these lists needs to
+be in the format: 
 
 lookup\_key x y z
 
@@ -307,13 +306,18 @@ AS15-M-0074 -1345328.6130903 151849061.51791 689530.60102555
 
 \end{enumerate}
 
+Sample runs with the inputs satisfying these requirements are available (section \ref{samples}).
+
 \section{Modeling and the algorithm}\label{algorithm}
 
 In section we describe the mathematical modeling underlying the albedo reconstruction software.
 
-Let $I^k_{ij}, A_{ij}$, $X_{ij}$, $R^k_{ij}, T^k$ be the observed image value, albedo, DTM, reflectance, and exposure time at pixel $(i,j)$ and $k$-th image.
+Let $I^k_{ij}, A_{ij}$, $R^k_{ij}, T^k$ be the
+observed image value, albedo, reflectance, and exposure time. Here, $(i,j)$ are pixel indices, and $k$ is the
+image index.
 
-We would like to determine the set ${\tilde{A}_{ij}, \tilde{T}^k} = \arg \min_{A_{ij}, T^k} {\bf Q}$  where
+We would like to determine the set ${\tilde{A}_{ij}, \tilde{T}^k},
+\tilde{c}_l = \arg \min_{A_{ij}, T^k, c_l} {\bf Q}$  where
 \begin{eqnarray}
 {\bf Q} = \sum_k\sum_{ij}\left[(I^k_{ij}-A_{ij}T^kR^k_{ij})^2 S^k_{ij}w^k_{ij}\right]
 \label{cost_function}
@@ -325,6 +329,12 @@ from the center of the image ($w^k_{ij} = 1$) to the image boundaries
 ($w^k_{ij} = 0$). The choice of these weighs insures that the
 reconstructed albedo mosaic is seamless. 
 
+\begin{figure}[ht]
+\centerline{\frame{\includegraphics[width=5.5cm]{images/angles.pdf}}}
+\caption{Illumination and viewing angles used by the Lunar-Lambertian reflectance model.}
+\label{fig:angles}
+\end{figure}
+
 In the above equation the reflectance is computed using the Lunar-Lambertian model and is given by
 \begin{eqnarray}
 R^k_{ij} = (e^{-c_1\alpha} + c_2)\left[ (1-L(\alpha))\cos({\bf i}_{ij}^k)
@@ -333,23 +343,24 @@ R^k_{ij} = (e^{-c_1\alpha} + c_2)\left[ (1-L(\alpha))\cos({\bf i}_{ij}^k)
 \label{reflectance}
 \end {eqnarray}
 where $L(\alpha) = 1 + A\alpha + B\alpha^2 + C\alpha^3$ is a weighting factor between the Lunar and Lambertian reflectance models that depends on the phase angle ($\alpha$), ${\bf i}_{ij}^k$ and ${\bf e}_{ij}^k$
-are the incident and emission angles at image $k$ and pixel $(i,j)$. The
-numbers $c_1$ and $c_2$ are called the {\it phase coefficients}.
+are the incident and emission angles at image $k$ and pixel
+$(i,j)$ (see Figure~\ref{fig:angles}). The numbers $c_1$ and $c_2$ are called the {\it phase coefficients}.
 
 Determining the best albedo reconstruction from a set of images and
-the corresponding DTM is formulated as a cost function minimization
+the corresponding DEM (digital elevation map) is formulated as a cost function minimization
 problem for the albedo $A_{ij}$, image exposures $T_k$, and phase
 coefficients $c_1$ and $c_2.$ (Equation~\ref{cost_function}). An iterative solution to the above least square problem is given by the Gauss-Newton updates described below. 
 
 \begin{itemize}
 \item {\bf Step 1 (initialization)}: Compute the average DEM and the weights.
 Normalize the weights so that the sum of weights at each pixel is 1 if the
-  variable USE\_NORMALIZED\_COST\_FUN is set to 1 in the configuration file. 
+parameter USE\_NORMALIZED\_COST\_FUN is set to 1 in the settings file
+(section \ref{settings}). 
   Initialize the exposure time as inversely proportional to the average image
   reflectance. Initialize the phase coefficients $c_1$ and $c_2$ to some
   reasonable values. Initialize the albedo as the $\arg \min$ of the
   cost function {\bf Q} for fixed exposure time and phase
-  coefficients, 
+  coefficients 
 \begin{eqnarray}
 A_{ij} = \frac{\sum_k I_{ij}^k T^kR^k_{ij} S^k_{ij}w^k_{ij}}{\sum_k (T^k R^k_{ij})^2 S^k_{ij}w^k_{ij}}
 \label{albedo_init}
@@ -357,14 +368,14 @@ A_{ij} = \frac{\sum_k I_{ij}^k T^kR^k_{ij} S^k_{ij}w^k_{ij}}{\sum_k (T^k R^k_{ij
 
 \item {\bf Step 2}: Re-estimate the exposure time using
 \begin{eqnarray}
-\tilde{T} ^k = T^k + \frac{\sum_{ij} (I_{ij}^k-T^kA_{ij}R^k_{ij})A_{ij}R^k_{ij}S^k_{ij}w^k_{ij}}{\sum_{ij}(A_{ij} R^k_{ij})^2 S^k_{ij}w^k_{ij}}
+\tilde{T} ^k = T^k + \frac{\sum_{ij} (I_{ij}^k-A_{ij}T^kR^k_{ij})A_{ij}R^k_{ij}S^k_{ij}w^k_{ij}}{\sum_{ij}(A_{ij} R^k_{ij})^2 S^k_{ij}w^k_{ij}}
 \label{exposure_iter}
 \end {eqnarray}
 
 \item {\bf Step 3}: Re-estimate the phase coefficients using
 \begin{eqnarray}
 \tilde{c_1} = c_1 + \frac{\sum_{ijk}
-  (I_{ij}^k-T^kA_{ij}R^k_{ij})T^kA_{ij} \frac{\partial R^k_{ij}}{\partial c_1}S^k_{ij}w^k_{ij}}{\sum_{ijk}\left(T^kA_{ij}\frac{\partial R^k_{ij}}{\partial c_1}\right)^2 S^k_{ij}w^k_{ij}}
+  (I_{ij}^k-A_{ij}T^kR^k_{ij})A_{ij}T^k \frac{\partial R^k_{ij}}{\partial c_1}S^k_{ij}w^k_{ij}}{\sum_{ijk}\left(A_{ij}T^k\frac{\partial R^k_{ij}}{\partial c_1}\right)^2 S^k_{ij}w^k_{ij}}
 \label{phasecoeff_iter}
 \end {eqnarray}
 and analogously for $c_2$. The partial derivatives $\partial
@@ -373,7 +384,7 @@ computed from Equation~\ref{reflectance}.
 
 \item {\bf Step 4}: Re-estimate the albedo using
 \begin{eqnarray}
-\tilde{A}_{ij}=A_{ij}+\frac{\sum_k (I_{ij}^k-T^kA_{ij}R^k_{ij}) T^kR^k_{ij}S^k_{ij}w^k_{ij}}{\sum_k (T^k R^k_{ij})^2 S^k_{ij}w^k_{ij}}
+\tilde{A}_{ij}=A_{ij}+\frac{\sum_k (I_{ij}^k-A_{ij}T^kR^k_{ij}) T^kR^k_{ij}S^k_{ij}w^k_{ij}}{\sum_k (T^k R^k_{ij})^2 S^k_{ij}w^k_{ij}}
 \label{albedo_iter}
 \end {eqnarray}
 
@@ -433,7 +444,7 @@ inferred by looking at the output of {\it reconstruct.sh}.
 \section{Retrieving the input data from ISIS cubes}
 
 The albedo reconstruction software assumes that the input DRG images are in GeoTIFF
-format, and that the sun and spacecraft positions are in text files (section \ref{inputs_outputs}).
+format, and that the sun and spacecraft positions are in text files (section \ref{overview}).
 This section describes how to get this data from ISIS cubes.
 
 The DRG images can be obtained by orthoprojecting the ISIS cubes 
@@ -451,16 +462,18 @@ position, the directory containing the DEM tiles to orthoproject onto,
 the desired output resolution in meters per pixel, the
 number of processors to use, and the name of the output image.
 
-To get the sun and spacecraft position from a list of ISIS cubes the
+To get the sun and spacecraft position from a list of ISIS cubes, the
 script {\it get\_sun\_or\_spacecraft\_position.pl} is used, also located in PhotometryTK/src/tools.
 The usage is: 
 
 get\_sun\_or\_spacecraft\_position.pl sun-or-spacecraft inputCubesList.txt outputPositionList.txt
 
+%\renewcommand{\thesection}{A}
+
 \appendix
 
-%\renewcommand{\thesection}{A-\arabic{section}}
-\renewcommand{\thesection}{A}
+\renewcommand{\thesection}{A-\arabic{section}}
+
 
 \section{A sample settings file}
 
@@ -468,7 +481,7 @@ get\_sun\_or\_spacecraft\_position.pl sun-or-spacecraft inputCubesList.txt outpu
 # Files/directories
 DRG_DIR                   DIM_input_2560mpp
 DEM_DIR                   DEM_tiles_sub64
-SUN_POSITION_FILE         meta/sunpos.txt
+SUN_POSITION_FILE         meta/sunpos.txt 
 SPACECRAFT_POSITION_FILE  meta/spacecraftpos.txt
 
 # Constants
@@ -478,16 +491,16 @@ SIMULATION_BOX            -180:180:-180:180
 REFLECTANCE_TYPE          2
 SHADOW_THRESH             40
 SHADOW_TYPE               1
-TR_CONST                  1.6
-PHASE_COEFF_C1            1.4
-PHASE_COEFF_C2            0.5
+TR_CONST                  1.5
+PHASE_COEFF_C1            1.7
+PHASE_COEFF_C2            0.4
 MAX_NUM_ITER              0
 NO_DEM_DATA_VAL           -32767
 
 # Actions
 USE_WEIGHTS               1
 USE_NORMALIZED_COST_FUN   0
-COMPUTE_ERRORS            0
+COMPUTE_ERRORS            1
 \end{verbatim}
 
 % Create the References list

@@ -1,7 +1,18 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+// //__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
 
 
@@ -69,9 +80,13 @@ protected:
 
 TEST_F( TestAlbedo, FullCycle ) {
 
+  std::cout << std::endl;
+  string cmd = "echo Running the tests in $(pwd)";
+  system(cmd.c_str());
+  
   // Make symbolic links in the current directory to the script and data necessary to run this test.
   string files[] = {
-    "cmpdirs.sh", "meta",
+    "meta",
     "DIM_input_1280mpp_masked", "DIM_input_2560mpp",
     "DEM_tiles_sub64",
     "photometry_settings_1.txt", "albedo_gold_1",
@@ -79,26 +94,28 @@ TEST_F( TestAlbedo, FullCycle ) {
   };
   
   for (int s = 0 ; s < sizeof(files)/sizeof(string); s++){
-    string cmd = "ln -s ../../../../src/photk/tests/" + files[s] + " .";
-    std::cout << cmd << std::endl;
+    string cmd = "ln -s ../../../../src/photk/tests/" + files[s] + " . > /dev/null 2>&1";
+    //std::cout << cmd << std::endl;
     system(cmd.c_str());
   }
-  string cmd = "ln -s ../../../../src/tools/reconstruct.sh .";
-  std::cout << cmd << std::endl;
+  cmd = "ln -s ../../../../src/tools/reconstruct.sh . > /dev/null 2>&1";
+  //std::cout << cmd << std::endl;
   int flag = system(cmd.c_str());
   
   // Run test 1
-  cmd="./reconstruct.sh photometry_settings_1.txt curr_1 > output1.txt";
+  std::cout << "\nRunning test 1" << std::endl;
+  cmd="./reconstruct.sh photometry_settings_1.txt test_1 > output1.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
-  flag = compareDirsWithTol("albedo_gold_1", "albedo_curr_1");
+  flag = compareDirsWithTol("albedo_gold_1", "albedo_test_1");
   EXPECT_EQ(flag, 1);
   
   // Run test 2
-  cmd="./reconstruct.sh photometry_settings_2.txt curr_2 > output2.txt";
+  std::cout << "\nRunning test 2" << std::endl;
+  cmd="./reconstruct.sh photometry_settings_2.txt test_2 > output2.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
-  flag = compareDirsWithTol("albedo_gold_2", "albedo_curr_2");
+  flag = compareDirsWithTol("albedo_gold_2", "albedo_test_2");
   EXPECT_EQ(flag, 1);
 }
 

@@ -1,7 +1,18 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
 
 
@@ -670,14 +681,13 @@ void photometry::ReadPhaseCoeffsFromFile(std::string phaseDir, GlobalParams& set
 
   // Read the latest values of the phase coefficients from the file
 
-  settings.phaseCoeffsFileName = phaseDir + "/phaseCoeffs.txt";
-  
-  std::ifstream fp(settings.phaseCoeffsFileName.c_str());
+  std::string phaseCoeffsFileName = phaseDir + "/phaseCoeffs.txt";
+  std::ifstream fp(phaseCoeffsFileName.c_str());
   if (fp){
     float a1, a2;
     while( fp >> a1 >> a2){
-      settings.phaseCoeffA1 = a1;
-      settings.phaseCoeffA2 = a2;
+      settings.phaseCoeffC1 = a1;
+      settings.phaseCoeffC2 = a2;
     }
   }
   fp.close();
@@ -685,31 +695,27 @@ void photometry::ReadPhaseCoeffsFromFile(std::string phaseDir, GlobalParams& set
   return;
 }
 
-void photometry::AppendPhaseCoeffsToFile(const GlobalParams& settings){
+void photometry::AppendPhaseCoeffsToFile(std::string phaseDir, const GlobalParams& settings){
 
   // Append the current phase coefficients to the file. This way when
   // we do multiple albedo iterations we keep all the current and
   // previous values of phase coefficients.
   
-  if (settings.phaseCoeffsFileName == ""){
-    std::cerr << "The phase coefficients file was not set yet." << std::endl;
-    exit(1);
-  }
-  
+  std::string phaseCoeffsFileName = phaseDir + "/phaseCoeffs.txt";
   FILE *fp;
-  fp = fopen(settings.phaseCoeffsFileName.c_str(), "a");
-  std::cout << "Writing " << settings.phaseCoeffsFileName << std::endl;
-  fprintf(fp, "%f %f\n", settings.phaseCoeffA1, settings.phaseCoeffA2);
+  fp = fopen(phaseCoeffsFileName.c_str(), "a");
+  std::cout << "Writing " << phaseCoeffsFileName << std::endl;
+  fprintf(fp, "%f %f\n", settings.phaseCoeffC1, settings.phaseCoeffC2);
   fclose(fp);
 }
 
 float photometry::getShadowThresh(const GlobalParams& settings, float exposureRefl){
 
   float t = -1.0; // shadow threshold
-  if (settings.shadowRemovalType == CONSTANT_THRESHOLD_SHADOW_REMOVAL)
+  if (settings.shadowType == CONSTANT_THRESHOLD_SHADOW_REMOVAL)
     t = settings.shadowThresh;
-  else if (settings.shadowRemovalType == LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL ||
-           settings.shadowRemovalType == LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL)
+  else if (settings.shadowType == LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL ||
+           settings.shadowType == LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL)
     t = settings.shadowThresh/exposureRefl;
 
   return t;
@@ -883,21 +889,20 @@ void photometry::listTifsInDirOverlappingWithBox(const std::string & dirName,
   return;
 }
 
-void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
-                                                     std::string imageFile, Vector4 const& simulationBox,
-                                                     std::vector<ImageRecord> const& drgRecords,
-                                                     std::string DEMTilesList,    std::string meanDEMDir,
-                                                     std::string albedoTilesList, std::string albedoDir
-                                                     ){
-
-  // Create all the tiles which overlap with all DRG images which in
+void photometry::listAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
+                                                   std::string imageFile, Vector4 const& simulationBox,
+                                                   std::vector<ImageRecord> const& drgRecords,
+                                                   std::string DEMTilesList,    std::string meanDEMDir,
+                                                   std::string albedoTilesList, std::string albedoDir,
+                                                   std::string sampleTileFile
+                                                   ){
+  
+  // Create the list all the tiles which overlap with all DRG images which in
   // turn overlap with the simulation box.
 
   // The georeference of tiles will be obtained from the georeference
   // of an input image (any one of those images would work as well as
   // any other).
-
-  //  Write to disk both the tiles themselves and their list.
 
   // Note that the tiles have a padding, so they are a few pixels larger than what
   // they should be. We need that in order to be able to compute the normals
@@ -926,7 +931,15 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
   // The input DRG must be uint8
   enforceUint8Img(imageFile);
   
-  GeoReference geo; read_georeference(geo, imageFile);
+  // Use the georeference of the input image to save a sample tile. We
+  // will read this tile later to recover the georeference.
+  GeoReference geo;
+  read_georeference(geo, imageFile);
+  ImageView<int> sampleTile;
+  sampleTile.set_size(100, 100);
+  write_georeferenced_image(sampleTileFile, sampleTile,
+                            geo, TerminalProgressCallback("{Core}","Processing:"));
+
   ofstream fhd(DEMTilesList.c_str());    fhd.precision(20);
   ofstream fha(albedoTilesList.c_str()); fha.precision(20);
 
@@ -940,30 +953,6 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
     double max_y = min_y + tileSize;
     double max_x = min_x + tileSize;
     
-    // Tile corners coordinates with padding
-    double min_x_padded, max_x_padded, min_y_padded, max_y_padded;
-    applyPaddingToTileCorners(// Inputs
-                              geo, pixelPadding, min_x, max_x,  min_y, max_y,  
-                              // Outputs
-                              min_x_padded, max_x_padded, min_y_padded, max_y_padded
-                              );
-  
-    // Set the upper-left corner in the tile
-    Matrix3x3 T = geo.transform();
-    T(0,2) = min_x_padded;
-    T(1,2) = max_y_padded;
-    geo.set_transform(T);
-
-    // Determine the size of the tile
-    Vector2 pixUL = geo.lonlat_to_pixel(Vector2(min_x_padded, max_y_padded));
-    // Note: The value we get for  pixUL is (-0.5, -0.5).
-    // I was expecting (0, 0). (Oleg)
-    Vector2 pixLR = geo.lonlat_to_pixel(Vector2(max_x_padded, min_y_padded));
-
-    // To do: Below nrows and ncols may need to be interchanged.
-    int nrows = (int)round(pixLR(0) - pixUL(0));
-    int ncols = (int)round(pixLR(1) - pixUL(1));
-
     double uE = min_x, uN = max_y; // uppper-left corner without padding
     std::string sN = "N", sE = "E";
     if (uE < 0){ uE = -uE; sE = "W";}
@@ -972,26 +961,21 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
     os << albedoDir << "/tile_" << uE << sE << uN << sN << ".tif";
     std::string albedoTileFile = os.str();
     std::string DEMTileFile    = meanDEMDir + suffix_from_filename(albedoTileFile);
-    
-    // The albedo tiles themselves have no information for now, but we need
-    // them to exist on disk together with correct GeoReference for subsequent
-    // steps of the algorithm.
-    ImageView<PixelMask<PixelGray<float> > > albedoTile(nrows, ncols);
-      
-    std::cout << "Writing " << albedoTileFile << std::endl;
-    write_georeferenced_image(albedoTileFile,
-                              channel_cast<uint8>(clamp(albedoTile, 0.0,255.0)),
-                              geo, TerminalProgressCallback("{Core}","Processing:"));
 
-    // The actual corners of the tile may differ slightly than what we intended
-    // due to rounding. Compute the actual corners now that the tile was created.
-    Vector4 C = ComputeGeoBoundary(geo, albedoTile.cols(), albedoTile.rows());
-
+    // Tile corners coordinates with padding
+    double min_x_padded, max_x_padded, min_y_padded, max_y_padded;
+    applyPaddingToTileCorners(// Inputs
+                              geo, pixelPadding, min_x, max_x,  min_y, max_y,  
+                              // Outputs
+                              min_x_padded, max_x_padded, min_y_padded, max_y_padded
+                              );
+  
+    // Write the tile corners to disk
     fha << 1 << " " << albedoTileFile << " "
-        << C(0) << " " << C(1) << " " << C(2) << " " << C(3) << std::endl;
+        << min_x_padded << " " << max_x_padded << " " << min_y_padded << " " << max_y_padded << std::endl;
 
     fhd << 1 << " " << DEMTileFile << " "
-        << C(0) << " " << C(1) << " " << C(2) << " " << C(3) << std::endl;
+        << min_x_padded << " " << max_x_padded << " " << min_y_padded << " " << max_y_padded << std::endl;
 
   } // End iterating over tiles
     
@@ -1000,11 +984,11 @@ void photometry::createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelP
   
 }
 
-std::vector<int> photometry::GetInputIndices(std::string inputFile, std::vector<std::string> const& DRGFiles){
+std::vector<int> photometry::GetInputIndices(std::string inputFile, const std::vector<ImageRecord>& drgRecords){
 
   std::vector<int> inputIndices;
-  for (int i = 0; i < (int)DRGFiles.size(); i++){
-    if (DRGFiles[i].compare(inputFile) == 0){
+  for (int i = 0; i < (int)drgRecords.size(); i++){
+    if (drgRecords[i].path == inputFile){
       inputIndices.push_back(i);
     }
   }
@@ -1012,55 +996,16 @@ std::vector<int> photometry::GetInputIndices(std::string inputFile, std::vector<
   return inputIndices;
 }
 
-//this function determines the image overlap for the general case
-//it takes into consideration any set of overlapping images.
-std::vector<int> photometry::makeOverlapList(const std::vector<ModelParams>& drgFiles,
-                                             const std::string& currFile) {
-
-  std::vector<int> overlapIndices; overlapIndices.clear();
-  Vector4 currCorners = getImageCorners(currFile);
-
-  //std::cout << "file " << currFile << " overlaps with ";
-  for (unsigned int i = 0; i < drgFiles.size(); i++){
-
-    const ModelParams& params = drgFiles[i];
-    //std::cout << params.inputFilename << " ";
-
-    Vector4 corners;
-    if (params.corners(3) == ImageRecord::defaultCoord) {
-      std::cerr << "ERROR: Missing the bounding box information for image: " << params.inputFilename
-                << std::endl;
-      cerr << "This should have been specified in the list of images." << endl;
-      exit(1);
-      corners = getImageCorners(params.inputFilename);
-      //std::cout << "Reading from disk: " << corners << std::endl;
-    } else {
-      corners = params.corners;
-      //std::cout << "Cached from list: " << corners << std::endl;
-    }
-
-    if (boxesOverlap(corners, currCorners) && currFile != params.inputFilename){
-      overlapIndices.push_back(i);
-      //std::cout << params.inputFilename << " ";
-    }
-  }
-  
-  //std::cout << std::endl;
-  return overlapIndices;
-}
-
 std::vector<int> photometry::makeOverlapList(const std::vector<ImageRecord>& drgRecords,
-                                             const std::string& currFile) {
+                                             const ImageRecord& currImg) {
 
-  // To do: Merge this function with the one above it and together with other
-  // overlap logic seen in this file.
   std::vector<int> overlapIndices;
-  Vector4 corners = getImageCorners(currFile);
+  Vector4 currCorners = Vector4(currImg.west, currImg.east, currImg.south, currImg.north);
 
   for (int j = 0; j < (int)drgRecords.size(); j++){
     const ImageRecord& rec = drgRecords[j];
-    Vector4 currCorners = Vector4(rec.west, rec.east, rec.south, rec.north);
-    if (! boxesOverlap(currCorners, corners)){
+    Vector4 corners = Vector4(rec.west, rec.east, rec.south, rec.north);
+    if (! boxesOverlap(corners, currCorners)){
       continue;
     }
     overlapIndices.push_back(j);
@@ -1172,26 +1117,21 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
   // outside of this range.
   settings.simulationBox         = Vector4(-360.0, 360.0, -360.0, 360.0);
   settings.reflectanceType       = -1; // invalid on purpose, must be set later
-  settings.saveReflectance       = 0;
-  settings.slopeType             = 0;
   settings.initDEM               = 0;
   settings.initExposure          = 0;
   settings.initAlbedo            = 0;
-  settings.shadowRemovalType     = CONSTANT_THRESHOLD_SHADOW_REMOVAL;
+  settings.shadowType            = CONSTANT_THRESHOLD_SHADOW_REMOVAL;
   settings.shadowThresh          = -1; // invalid on purpose, must be set later
-  settings.exposureInfoFilename  = "";
-  //settings.TRConst             = 1.24;
   settings.TRConst               = 1.0;
   settings.updateAlbedo          = 0;
   settings.updateExposure        = 0;
   settings.updateHeight          = 0;
   // Two parameters used in the formula for the reflectance
   // Initialize the phase coefficients. They will be updated later.
-  settings.phaseCoeffA1          = 1.4;
-  settings.phaseCoeffA2          = 0.5;
+  settings.phaseCoeffC1          = 1.4;
+  settings.phaseCoeffC2          = 0.5;
   settings.updatePhaseCoeffs     = 0;
   settings.updateTilePhaseCoeffs = 0;
-  settings.phaseCoeffsFileName   = "";
   settings.useWeights            = 0;
   settings.saveWeights           = 0;
   settings.useNormalizedCostFun  = 0;
@@ -1234,10 +1174,10 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
     extractSimBox(line, settings.simulationBox);
     CHECK_VAR("REFLECTANCE_TYPE",         "%d", reflectanceType);
     CHECK_VAR("SHADOW_THRESH",            "%f", shadowThresh);
-    CHECK_VAR("SHADOW_REMOVAL_TYPE",      "%d", shadowRemovalType);
+    CHECK_VAR("SHADOW_TYPE",              "%d", shadowType);
     CHECK_VAR("TR_CONST",                 "%f", TRConst);
-    CHECK_VAR("PHASE_COEFF_A1",           "%f", phaseCoeffA1);
-    CHECK_VAR("PHASE_COEFF_A2",           "%f", phaseCoeffA2);
+    CHECK_VAR("PHASE_COEFF_C1",           "%f", phaseCoeffC1);
+    CHECK_VAR("PHASE_COEFF_C2",           "%f", phaseCoeffC2);
     CHECK_VAR("MAX_NUM_ITER",             "%d", maxNumIter);
     CHECK_VAR("NO_DEM_DATA_VAL",          "%d", noDEMDataValue);
 
@@ -1246,22 +1186,6 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
     CHECK_VAR("USE_NORMALIZED_COST_FUN",  "%d", useNormalizedCostFun);
     //CHECK_VAR("UPDATE_HEIGHT",          "%d", updateHeight); // handled via cmd-line option
     //CHECK_VAR("COMPUTE_ERRORS",         "%d", computeErrors); // handled via cmd-line option
-
-    // Parameters controlling the flow (optional)
-    CHECK_VAR("INITIAL_SETUP",            "%d", initialSetup);
-    CHECK_VAR("SAVE_WEIGHTS",             "%d", saveWeights);
-    CHECK_VAR("COMPUTE_WEIGHTS_SUM",      "%d", computeWeightsSum);
-    CHECK_VAR("INIT_DEM",                 "%d", initDEM);
-    CHECK_VAR("INIT_EXPOSURE",            "%d", initExposure);
-    CHECK_VAR("INIT_ALBEDO",              "%d", initAlbedo);
-    CHECK_VAR("UPDATE_EXPOSURE",          "%d", updateExposure);
-    CHECK_VAR("UPDATE_TILE_PHASE_COEFFS", "%d", updateTilePhaseCoeffs);
-    CHECK_VAR("UPDATE_ALBEDO",            "%d", updateAlbedo);
-    CHECK_VAR("UPDATE_PHASE_COEFFS",      "%d", updatePhaseCoeffs);
-    
-    // Potentially obsolete
-    CHECK_VAR("SAVE_REFLECTANCE",         "%d", saveReflectance);
-    CHECK_VAR("SLOPE_TYPE",               "%d", slopeType);
   }
 
   settingsFile.close();
@@ -1283,14 +1207,14 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
   // Lunar-Lambertian models. If we do albedo, the reflectance used for adaptive shadow removal
   // must use the same model as the reflectance used for albedo.
   if  (settings.reflectanceType   == LAMBERT &&
-       settings.shadowRemovalType == LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
-    std::cerr << "ERROR: The reflectance type is Lambertian. Then the value of SHADOW_REMOVAL_TYPE cannot be "
+       settings.shadowType == LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
+    std::cerr << "ERROR: The reflectance type is Lambertian. Then the value of SHADOW_TYPE cannot be "
               << "Lunar-Lambertian (" << LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL << ")" << endl;
     exit(1);
   }
   if  (settings.reflectanceType   == LUNAR_LAMBERT &&
-       settings.shadowRemovalType == LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
-    std::cerr << "ERROR: The reflectance type is Lunar-Lambertian. Then the value of SHADOW_REMOVAL_TYPE cannot be "
+       settings.shadowType == LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
+    std::cerr << "ERROR: The reflectance type is Lunar-Lambertian. Then the value of SHADOW_TYPE cannot be "
               << "Lambertian (" << LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL << ")" << endl;
     exit(1);
   }
@@ -1299,14 +1223,14 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
   // what kind of reflectance we need but never forget that at the end
   // what we want is mosaic, not albedo, so don't use that reflectance
   // in the final computation. This logic must happen after
-  // validating the shadowRemovalType field.
+  // validating the shadowType field.
   settings.forceMosaic = 0;
   if (settings.reflectanceType == NO_REFL){
-    if (settings.shadowRemovalType == LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
+    if (settings.shadowType == LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
       settings.reflectanceType = LAMBERT;
       settings.forceMosaic = 1;
     }
-    if (settings.shadowRemovalType == LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
+    if (settings.shadowType == LUNAR_LAMBERTIAN_THRESHOLD_SHADOW_REMOVAL){
       settings.reflectanceType = LUNAR_LAMBERT;
       settings.forceMosaic = 1;
     }
@@ -1360,10 +1284,10 @@ void photometry::PrintGlobalParams(GlobalParams& settings){
   printf("SIMULATION_BOX               %f:%f:%f:%f\n", s[0], s[1], s[2], s[3]);
   printf("REFLECTANCE_TYPE             %d\n", settings.reflectanceType);
   printf("SHADOW_THRESH                %f\n", settings.shadowThresh);
-  printf("SHADOW_REMOVAL_TYPE          %d\n", settings.shadowRemovalType);
+  printf("SHADOW_TYPE                  %d\n", settings.shadowType);
   printf("TR_CONST                     %f\n", settings.TRConst);
-  printf("PHASE_COEFF_A1               %f\n", settings.phaseCoeffA1);
-  printf("PHASE_COEFF_A2               %f\n", settings.phaseCoeffA2);
+  printf("PHASE_COEFF_C1               %f\n", settings.phaseCoeffC1);
+  printf("PHASE_COEFF_C2               %f\n", settings.phaseCoeffC2);
   printf("MAX_NUM_ITER                 %d\n", settings.maxNumIter);
   printf("NO_DEM_DATA_VAL              %d\n", settings.noDEMDataValue);
 
@@ -1373,22 +1297,6 @@ void photometry::PrintGlobalParams(GlobalParams& settings){
   //printf("UPDATE_HEIGHT              %d\n", settings.updateHeight);
   //printf("COMPUTE_ERRORS             %d\n", settings.computeErrors); // handled via cmd-line option
 
-  // Parameters controlling the flow
-  printf("INITIAL_SETUP                %d\n", settings.initialSetup);
-  printf("SAVE_WEIGHTS                 %d\n", settings.saveWeights);
-  printf("COMPUTE_WEIGHTS_SUM          %d\n", settings.computeWeightsSum);
-  printf("INIT_DEM                     %d\n", settings.initDEM);
-  printf("INIT_EXPOSURE                %d\n", settings.initExposure);
-  printf("INIT_ALBEDO                  %d\n", settings.initAlbedo);
-  printf("UPDATE_EXPOSURE              %d\n", settings.updateExposure);
-  printf("UPDATE_TILE_PHASE_COEFFS     %d\n", settings.updateTilePhaseCoeffs);
-  printf("UPDATE_PHASE_COEFFS          %d\n", settings.updatePhaseCoeffs);
-  printf("UPDATE_ALBEDO                %d\n", settings.updateAlbedo);
-
-  // Potentially obsolete
-  printf("SAVE_REFLECTANCE             %d\n", settings.saveReflectance);
-  printf("SLOPE_TYPE                   %d\n", settings.slopeType);
-  
   return;
 }
 
@@ -1416,12 +1324,8 @@ bool photometry::readImagesFile(std::vector<ImageRecord>& images,
     if ('#' == line[0]) continue;
 
     if (6 != sscanf(line.c_str(), "%d %1023s %lf %lf %lf %lf",
-                    &useImage,
-                    path,
-                    &rec.west,
-                    &rec.east,
-                    &rec.south,
-                    &rec.north
+                    &useImage, path,
+                    &rec.west, &rec.east, &rec.south, &rec.north
                     )
         ) {
       std::cerr << "ERROR: readImagesFile: " << imagesListName
@@ -1444,7 +1348,7 @@ void photometry::listDRGinBoxAndAllDEM(bool useReflectance,
                                        std::string allDRGIndex, std::string allDEMIndex,
                                        Vector4 simulationBox, 
                                        std::string DRGDir,  std::string DEMDir, 
-                                       std::string DRGInBoxList
+                                       std::string imagesList
                                        ){
 
   // Create the lists of ALL DRG and DEM images in DRGDir and
@@ -1463,9 +1367,9 @@ void photometry::listDRGinBoxAndAllDEM(bool useReflectance,
   }
 
   // Create the list of all DRG files intersecting the current box.
-  ofstream fh(DRGInBoxList.c_str());
+  ofstream fh(imagesList.c_str());
   if (!fh){
-    std::cerr << "ERROR: listDRGinBoxAndAllDEM: can't open " << DRGInBoxList
+    std::cerr << "ERROR: listDRGinBoxAndAllDEM: can't open " << imagesList
               << " for writing" << std::endl;
     exit(1);
   }

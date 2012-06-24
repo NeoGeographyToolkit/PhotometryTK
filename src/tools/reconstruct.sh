@@ -16,12 +16,10 @@
 #  limitations under the License.
 # __END_LICENSE__
 
-# This script calls recontruct.cc to do albedo reconstruction.
-# It must be run as:
-# ./reconstruct.sh labelStr
+# This script performs albedo reconstruction. It should be run as:
+# ./reconstruct.sh settingsFile labelStr
 # The results will go to albedo_$labelStr
-# See the documentation at
-# https://babelfish.arc.nasa.gov/trac/irg/wiki/MapMakers/albedo
+# See the documentation in PhotometryTK/docs
 
 if [ "$#" -lt 2 ]; then 
     echo Usage: $0 settingsFile labelStr
@@ -39,10 +37,14 @@ image2qtree="$VISION_WORKBENCH_PATH/src/vw/tools/image2qtree"
 # Output directory
 resDir=albedo_$labelStr
 
-updateExposure=0 # updating the exposure makes things worse
-updatePhase=1  
+updatePhase=1    # if to update the phase coefficients when performing iterations
+updateExposure=0 # updating the exposure makes things worse so we turn it off for now
 TAG="" # Use here AS15, AS16, or AS17 to do albedo only for a specific mission
 
+# See if to run the script on multiple machines (such as a
+# supercomputer) or just on the local machine. The value of
+# PBS_NODEFILE needs to be a file name having the list of computing
+# nodes to run the script on.
 if [ "$PBS_NODEFILE" != "" ]; then useSuperComp=1; else useSuperComp=0; fi
 
 # Validation
@@ -68,7 +70,7 @@ if [ "$UPDATE_HEIGHT"  = "" ]; then UPDATE_HEIGHT=0;  fi
 
 # Temporary fix: For robustness, rebuild the indices of images each time it is run to avoid
 # invalid indices.
-#rm -fv $DRG_DIR/index.txt $DEM_DIR/index.txt $DEM_DIR/index.txt
+#rm -fv $DRG_DIR/index.txt $DEM_DIR/index.txt
 
 # Wipe the results directory.
 rm -rfv $resDir
@@ -83,7 +85,6 @@ if [ "$refImage" = "" ]; then echo "Error: No images."; exit; fi
 overrideOptions="--initial-setup"
 $reconstruct $options $overrideOptions -i $refImage
 status=$?
-
 # Must check the exit status and not continue if the above command failed
 if [ "$status" -ne 0 ]; then exit; fi
 
@@ -95,6 +96,8 @@ if [ ! -f "$albedoTilesList"  ]; then echo "ERROR: File $albedoTilesList does no
 if [ "$TAG" != "" ]; then 
     cat $imagesList | grep $TAG > tmp.txt; cat tmp.txt > $imagesList
 fi
+
+#cat $imagesList | filter.pl badImages.txt -v > tmp.txt; cat tmp.txt > $imagesList
 
 # Create the list of drg images and tiles as expected by reconstruct.cc.
 DRG_FILES=$( cat $imagesList      | awk '{print $2}')
@@ -111,6 +114,8 @@ if [ "$UPDATE_HEIGHT" -ne 0 ]; then numIter=6; fi;
 
 for ((i = 1; i <= $numIter; i++)); do
 
+    echo start step $i at $(date)
+    
     # See if this is the last iteration
     if [ "$i" -eq "$numIter" ]; then isLastIter=1; else isLastIter=0; fi
     
@@ -142,7 +147,7 @@ for ((i = 1; i <= $numIter; i++)); do
         VALS="$DRG_FILES"
     fi
     overrideOptions=""
-    if   [ $rem -eq 1 ]; then overrideOptions="--save-weights --compute-shadow"; 
+    if   [ $rem -eq 1 ]; then overrideOptions="--save-weights"; 
     elif [ $rem -eq 2 ]; then overrideOptions="--init-dem";                      
     elif [ $rem -eq 3 ]; then overrideOptions="--compute-weights-sum";                      
     elif [ $rem -eq 4 ]; then overrideOptions="--init-exposure";                 
@@ -173,17 +178,13 @@ for ((i = 1; i <= $numIter; i++)); do
         xargs="xargs -n 1 -P $NUM_PROCESSES -I {} $run"
         echo $VALS | perl -pi -e "s#\s+#\n#g" | $xargs
     fi
+
+    echo end step $i at $(date)
     
 done # end all iterations
 
-# Visualize the results at the resolution they were generated
-if [ 0 -eq 1 ] && [ $useSuperComp -eq 0 ]; then 
-    make_kml_tiles.pl $resDir/albedo
-    make_kml_tiles.pl $resDir/error
-fi
-
 if [ $useSuperComp -eq 0 ]; then 
-    # Visualize the results by doing extra sampling.
+    # Visualize the results t 1/4th the original resolution
     # The output goes to $shoDir
     shoDir=$resDir/albedo_sub4
     tilesVrt=$resDir/tilesVrt.tif

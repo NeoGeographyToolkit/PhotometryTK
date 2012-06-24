@@ -1,7 +1,18 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
 
 
@@ -124,7 +135,7 @@ namespace photometry {
   void maskPixels(std::string imgFile, std::string maskFile, double shadowThresh, std::string outDir);
 
   void ReadPhaseCoeffsFromFile(std::string phaseDir, GlobalParams& settings);
-  void AppendPhaseCoeffsToFile(const GlobalParams& settings);
+  void AppendPhaseCoeffsToFile(std::string phaseDir, const GlobalParams& settings);
 
   float getShadowThresh(const GlobalParams& settings, float exposureRefl);
 
@@ -139,21 +150,19 @@ namespace photometry {
   void listTifsInDirOverlappingWithBox(const std::string & dirName,
                                        vw::Vector4 & boxCorners,
                                        const std::string & outputListName);
-      
-  void createAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
-                                           std::string imageFile, vw::Vector4 const& simulationBox,
-                                           std::vector<ImageRecord> const& drgRecords,
-                                           std::string DEMTilesList,    std::string meanDEMDir,
-                                           std::string albedoTilesList, std::string albedoDir
-                                           );
 
-  std::vector<int> GetInputIndices(std::string inputFile, std::vector<std::string> const& DRGFiles);
+  void listAlbedoTilesOverlappingWithDRG(double tileSize, int pixelPadding,
+                                         std::string imageFile, vw::Vector4 const& simulationBox,
+                                         std::vector<ImageRecord> const& drgRecords,
+                                         std::string DEMTilesList,    std::string meanDEMDir,
+                                         std::string albedoTilesList, std::string albedoDir,
+                                         std::string sampleTileFile
+                                         );
 
-  std::vector<int> makeOverlapList(const std::vector<ModelParams>& drgFiles,
-                                   const std::string& currFile);
+  std::vector<int> GetInputIndices(std::string inputFile, const std::vector<ImageRecord>& drgRecords);
 
   std::vector<int> makeOverlapList(const std::vector<ImageRecord>& drgRecords,
-                                   const std::string& currFile);
+                                   const ImageRecord & currImg);
       
   void printOverlapList(std::vector<int> const& overlapIndices);
 
@@ -172,10 +181,33 @@ namespace photometry {
                              std::string allDRGIndex, std::string allDEMIndex,
                              vw::Vector4 simulationBox, 
                              std::string DRGDir,  std::string DEMDir, 
-                             std::string DRGInBoxList
+                             std::string imagesList
                              );
-
+  
+  template <class PixelT>
+  void createGeoRefAndTileWithGivenCorners(double min_x, double max_x, double min_y, double max_y,
+                                           vw::cartography::GeoReference & geoRef,  // input-output
+                                           vw::ImageView<PixelT> & tile             // output
+                                           ){
     
+    // Set the upper-left corner in the tile
+    vw::Matrix3x3 T = geoRef.transform();
+    T(0,2) = min_x;
+    T(1,2) = max_y;
+    geoRef.set_transform(T);
+    
+    // Determine the size of the tile
+    vw::Vector2 pixUL = geoRef.lonlat_to_pixel(vw::Vector2(min_x, max_y));
+    // Note: The value we get for  pixUL is (-0.5, -0.5).
+    // the value (0, 0) was expected.
+    
+    vw::Vector2 pixLR = geoRef.lonlat_to_pixel(vw::Vector2(max_x, min_y));
+    int ncols = (int)round(pixLR(0) - pixUL(0));
+    int nrows = (int)round(pixLR(1) - pixUL(1));
+    
+    tile.set_size(ncols, nrows);
+  }
+  
   template <class pixelInType, class pixelOutType>
   bool getSubImageWithMargin(// Inputs
                              vw::Vector2 begLonLat, vw::Vector2 endLonLat,
@@ -222,8 +254,7 @@ namespace photometry {
     // In sub_geo, the (0, 0) pixel will where (beg_col, beg_row) is in input_geo.
     sub_geo = vw::cartography::crop(input_geo, beg_col, beg_row);
 
-    //system("echo getSubImageWithMargin top is $(top -u $(whoami) -b -n 1|grep lt-reconstruct)");
-  
+    //system("echo getSubImageWithMargin_top is $(top -u $(whoami) -b -n 1|grep reconstruct)");
     return true;
   }
 

@@ -1,7 +1,18 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
 
 
@@ -14,6 +25,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <cmath>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -34,68 +46,16 @@ using namespace vw::cartography;
 #include <photk/Misc.h>
 #include <photk/Weights.h>
 using namespace photometry;
-
-//generates the normal of a point p1 from the 3D coordinates of p1, p2, p3
-//this function is currently buggy. Needs to be fixed and this will replace
-//computeNormalFrom3DPoints
-Vector3
-photometry::computeNormalFrom3DPointsGeneral(Vector3 p1,
-                                                 Vector3 p2,
-                                                 Vector3 p3) {
-  return -normalize(cross_prod(p2-p1,p3-p1));
-}
-
-//generates the normal of a point p1 from the 3D coordinates of p1, p2, p3
-//assumes unit dstance between adjacent pixels in x, y coordinates
-//this function will be grandfathered
-//author Ara Nefian
-Vector3
-photometry::computeNormalFrom3DPoints(Vector3 p1, Vector3 p2,
-                                          Vector3 p3) {
-  Vector3 normal;
-
-  normal[0] = p1[2]-p2[2];
-  normal[1] = p1[2]-p3[2];
-  normal[2] = -1;
-
-  return normalize(normal);
-}
-
-/*
-//generates the 3D coordinates of a point from longitude and latitude on the Moon
-//Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
-//author Ara Nefian
-Vector3 get_normal(Vector2 lon_lat){
-
-  Vector3 xyz;
-  float x, y, z;
-  float rho;
-  float longitude, latitude;
-
-  longitude = lon_lat[0]*3.14/180;
-  latitude = lon_lat[1]*3.14/180;
-  rho = 1738; //kilometers
-  x = rho*cos(longitude)*cos(latitude);
-  y = rho*sin(longitude)*cos(latitude);
-  z = rho*sin(latitude);
-
-  xyz[0] = x;
-  xyz[1] = y;
-  xyz[2] = z;
-
-  return xyz;
-}
-*/
-
+using namespace std;
 
 // Read from file the 3D position of the sun or spacecraft in Moon-centric coordinates.
 // We assume that each line in the file has the form:
-// some_text/AS15-M-0073_some_text -1353012.8795685 151848979.22428 689542.65035626
+// AS15-M-0073 -1353012.8795685 151848979.22428 689542.65035626
 // We will use the 11-character string "AS15-M-0073" as a unique identifier.
 void
 photometry::ReadSunOrSpacecraftPosition(std::string const& filename,             // Input
-                                            std::map<std::string, Vector3> & records // Output
-                                            ){
+                                        std::map<std::string, Vector3> & records // Output
+                                        ){
 
   records.clear();
   
@@ -129,107 +89,32 @@ photometry::ReadSunOrSpacecraftPosition(std::string const& filename,            
   return;
 }
 
-/*
-//computes the cosine of the light direction and the normal to the Moon
-//Vector3  sunpos: the 3D coordinates of the Sun relative to the center of the Moon
-//Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
-//author Ara Nefian
-float computeReflectance(Vector3 sunPos, Vector2 lon_lat)
-{
-  float reflectance;
-
-  Vector3 xyz = get_normal(lon_lat);
-
-  Vector3 sunDirection; // sun coordinates relative to the xyz point on the Moon surface
-  sunDirection[0] = sunPos[0]-xyz[0];
-  sunDirection[1] = sunPos[1]-xyz[1];
-  sunDirection[2] = sunPos[2]-xyz[2];
-
-  float sunDirectionNorm;
-  sunDirectionNorm = sqrt(sunDirection[0]*sunDirection[0] + sunDirection[1]*sunDirection[1] + sunDirection[2]*sunDirection[2]);
-
-    //printf("sun_direction norm: %f, 0: %f, 1: %f, 2: %f\n", sun_direction_norm, sun_direction[0], sun_direction[1], sun_direction[2]);
-    sunDirection[0]=sunDirection[0]/sunDirectionNorm;
-    sunDirection[1]=sunDirection[1]/sunDirectionNorm;
-    sunDirection[2]=sunDirection[2]/sunDirectionNorm;
-    //printf("sun_direction norm: %f, 0: %f, 1: %f, 2: %f\n", sun_direction_norm, sun_direction[0], sun_direction[1], sun_direction[2]);
-
-    float xyzNorm;
-    xyzNorm = sqrt(xyz[0]*xyz[0] + xyz[1]*xyz[1] + xyz[2]*xyz[2]);
-
-    xyz[0] = xyz[0]/xyzNorm;
-    xyz[1] = xyz[1]/xyzNorm;
-    xyz[2] = xyz[2]/xyzNorm;
-    //printf("xyz 0: %f, 1: %f, 2: %f\n", xyz[0], xyz[1], xyz[2]);
-
-    reflectance = sunDirection[0]*xyz[0] + sunDirection[1]*xyz[1] + sunDirection[2]*xyz[2];
-
-    return reflectance;
-}
-*/
-
 //computes the Lambertian reflectance model (cosine of the light direction and the normal to the Moon)
 //Vector3  sunpos: the 3D coordinates of the Sun relative to the center of the Moon
 //Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
 //author Ara Nefian
 float
 photometry::computeLambertianReflectanceFromNormal(Vector3 sunPos,
-                                                       Vector3 xyz,
-                                                       Vector3 normal) {
+                                                   Vector3 xyz,
+                                                   Vector3 normal) {
   float reflectance;
 
   //Vector3 xyz = get_normal(lon_lat);
   //printf("xyz[0] = %f, xyz[1] = %f, xyz[2] = %f\n", xyz[0], xyz[1], xyz[2]);
-        // sun coordinates relative to the xyz point on the Moon surface
-        Vector3 sunDirection = normalize(sunPos-xyz);
+  // sun coordinates relative to the xyz point on the Moon surface
+  Vector3 sunDirection = normalize(sunPos-xyz);
 
   reflectance = sunDirection[0]*normal[0] + sunDirection[1]*normal[1] + sunDirection[2]*normal[2];
 
   return reflectance;
 }
 
-//computes a simple naive reflectance model
-//this function will be grandfathered and replaced by computeLambertianReflectanceFromNormal
-//Vector3  sunpos: the 3D coordinates of the Sun relative to the center of the Moon
-//Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
-//author Ara Nefian
-float
-photometry::computeReflectanceFromNormal(Vector3 /*sunPos*/,
-                                             Vector3 /*xyz*/,
-                                             Vector3 /*normal*/) {
-  float reflectance;
-
-  reflectance = -1;
-  return reflectance;
-}
-
-//computes the Lunar-Lambertian reflectance mode
-//Vector3  sunpos: the 3D coordinates of the Sun relative to the center of the Moon
-//Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
-//author Ara Nefian
-float
-photometry::computeLunarLambertianReflectanceFromNormalOld(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,  Vector3 normal, float B_0, float L) {
-  float reflectance;
-
-  //compute /mu_0 = cosine of the angle between the light direction and the surface normal.
-  // sun coordinates relative to the xyz point on the Moon surface
-  Vector3 sunDirection = normalize(sunPos-xyz);
-  float mu_0 = dot_prod(sunDirection,normal);
-
-  //compute  /mu = cosine of the angle between the viewer direction and the surface normal.
-  // viewer coordinates relative to the xyz point on the Moon surface
-  Vector3 viewDirection = normalize(viewPos-xyz);
-  float mu = dot_prod(viewDirection,normal);
-
-  reflectance = B_0*((2*L*mu_0/(mu_0+mu)) + (1-L)*mu_0 );
-  return reflectance;
-}
 
 float
-photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,
-                                                            Vector3 normal, float phaseCoeffA1, float phaseCoeffA2,
-                                                            float & alpha // output
-                                                            ) {
+photometry::computeLunarLambertianReflectanceFromNormal(Vector3 const& sunPos, Vector3 const& viewPos, Vector3 const& xyz,
+                                                        Vector3 const& normal, float phaseCoeffC1, float phaseCoeffC2,
+                                                        float & alpha // output
+                                                        ) {
   
   float reflectance;
   float L;
@@ -250,7 +135,7 @@ photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vector3 
   double tol = 0.3;
   if (mu_0 < tol){
     // Sun is too low, reflectance is too close to 0, the albedo will be inaccurate
-    return 0;
+    return 0.0;
   }
   
   //compute  /mu = cosine of the angle between the viewer direction and the surface normal.
@@ -285,7 +170,7 @@ photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vector3 
   //printf(" deg_alpha = %f, L = %f\n", deg_alpha, L);
 
   if (mu_0 < 0.0){
-    return (0.0);
+    return 0.0;
   }
 
   if (mu < 0.0){ //emission angle is > 90
@@ -294,31 +179,31 @@ photometry::computeLunarLambertianReflectanceFromNormal(Vector3 sunPos, Vector3 
 
   if (mu_0 + mu == 0){
     //printf("negative reflectance\n");
-    reflectance = 0.0;
+    return 0.0;
   }
   else{
     reflectance = 2*L*mu_0/(mu_0+mu) + (1-L)*mu_0;
   }
-  if (reflectance < 0){
+  if (reflectance <= 0){
     //printf("negative reflectance\n");
-    reflectance = 0;
+    return 0.0;
   }
 
   // Attempt to compensate for points on the terrain being too bright
   // if the sun is behind the spacecraft as seen from those points.
 
   //reflectance *= std::max(0.4, exp(-alpha*alpha));
-  reflectance *= ( exp(-phaseCoeffA1*alpha) + phaseCoeffA2 );
+  reflectance *= ( exp(-phaseCoeffC1*alpha) + phaseCoeffC2 );
   
   return reflectance;
 }
 
 float
-photometry::ComputeReflectance(Vector3 normal, Vector3 xyz,
-                                   ModelParams const& input_img_params,
-                                   GlobalParams const& globalParams,
-                                   float & phaseAngle // output
-                                   ) {
+photometry::ComputeReflectance(Vector3 const& normal, Vector3 const& xyz,
+                               ModelParams const& input_img_params,
+                               GlobalParams const& globalParams,
+                               float & phaseAngle // output
+                               ) {
   float input_img_reflectance;
 
   switch ( globalParams.reflectanceType )
@@ -328,8 +213,8 @@ photometry::ComputeReflectance(Vector3 normal, Vector3 xyz,
       input_img_reflectance = computeLunarLambertianReflectanceFromNormal(input_img_params.sunPosition,
                                                                           input_img_params.spacecraftPosition,
                                                                           xyz,  normal,
-                                                                          globalParams.phaseCoeffA1,
-                                                                          globalParams.phaseCoeffA2,
+                                                                          globalParams.phaseCoeffC1,
+                                                                          globalParams.phaseCoeffC2,
                                                                           phaseAngle // output
                                                                           );
       break;
@@ -348,184 +233,72 @@ photometry::ComputeReflectance(Vector3 normal, Vector3 xyz,
 
 }
 
-void photometry::computeXYZandSurfaceNormal(ImageView<PixelGray<float> > const& DEMTile,
-                                                cartography::GeoReference const& DEMGeo,
-                                                float noDEMDataValue,
-                                                ImageView<Vector3> & dem_xyz,
-                                                ImageView<Vector3> & surface_normal){
-
-
-  // convert dem altitude to xyz cartesian pixels
-  dem_xyz = geodetic_to_cartesian( dem_to_geodetic( DEMTile, DEMGeo ),
-                                   DEMGeo.datum() );
-
-  // transfer noDEMDataValue values
-  for (int y=0; y < (int)dem_xyz.rows(); y++) {
-    for (int x=0; x < (int)dem_xyz.cols(); x++) {
-      if (DEMTile(x, y) == noDEMDataValue) {
-        dem_xyz(x, y) = Vector3();
-      }
-    }
-  }  
-
-  // Init the surface normal to zero
-  surface_normal.set_size(dem_xyz.cols(), dem_xyz.rows());
-  for (int y=0; y < (int)surface_normal.rows(); y++) {
-    for (int x=0; x < (int)surface_normal.cols(); x++) {
-      surface_normal(x, y) = Vector3();
-    }
-  }
-
-  for (int y=1; y < (int)surface_normal.rows(); y++) {
-    for (int x=1; x < (int)surface_normal.cols(); x++) {
-      
-      Vector3 base = dem_xyz(x, y);
-      if (base == Vector3()) {
-        continue;
-      }
-      Vector3 x1 = dem_xyz(x-1, y);
-      if (x1 == Vector3()) {
-        continue;
-      }
-      Vector3 y1 = dem_xyz(x, y-1);
-      if (y1 == Vector3()) {
-        continue;
-      }
-
-      Vector3 dx = base - x1;
-      Vector3 dy = base - y1;
-      surface_normal(x, y) = -normalize(cross_prod(dx, dy));
-    }
-  }
-
-  return;
-}
-
-void photometry::computeReflectanceAux(ImageView<Vector3> const& dem_xyz,
-                                           ImageView<Vector3> const& surface_normal,
+void photometry::computeReflectanceAtPixel(int x, int y,
+                                           ImageView<PixelGray<float> > const& DEMTile,
+                                           cartography::GeoReference const& DEMGeo,
+                                           float noDEMDataValue,
                                            ModelParams const& input_img_params,
                                            GlobalParams const& globalParams,
-                                           ImageView<PixelMask<PixelGray<float> > >& outputReflectance,
                                            bool savePhaseAngle,
-                                           ImageView<PixelMask<PixelGray<float> > >& phaseAngle) {
+                                           float &outputReflectance,
+                                           float & phaseAngle) {
 
+  // We assume 1<= x and 1 <= y
+  
+  outputReflectance = 0.0;
+  if (savePhaseAngle) phaseAngle = std::numeric_limits<double>::quiet_NaN();
+
+  Vector2 lonlat = DEMGeo.pixel_to_lonlat(Vector2(x, y));
+  float   h      = DEMTile(x, y);
+  if (h == noDEMDataValue) return;;
+  Vector3 lonlat3(lonlat(0), lonlat(1), h);
+  Vector3 base = DEMGeo.datum().geodetic_to_cartesian(lonlat3);
+
+  lonlat = DEMGeo.pixel_to_lonlat(Vector2(x-1, y));
+  h      = DEMTile(x-1, y);
+  if (h == noDEMDataValue) return;;
+  lonlat3 = Vector3(lonlat(0), lonlat(1), h);
+  Vector3 x1 = DEMGeo.datum().geodetic_to_cartesian(lonlat3);
+
+  lonlat = DEMGeo.pixel_to_lonlat(Vector2(x, y-1));
+  h      = DEMTile(x, y-1);
+  if (h == noDEMDataValue) return;;
+  lonlat3 = Vector3(lonlat(0), lonlat(1), h);
+  Vector3 y1 = DEMGeo.datum().geodetic_to_cartesian(lonlat3);
+
+  Vector3 dx = base - x1;
+  Vector3 dy = base - y1;
+  Vector3 normal = -normalize(cross_prod(dx, dy));
+
+  outputReflectance = ComputeReflectance(normal, base, input_img_params, globalParams, phaseAngle);
+}
+
+void photometry::computeReflectanceAux(ImageView<PixelGray<float> > const& DEMTile,
+                                       cartography::GeoReference const& DEMGeo,
+                                       float noDEMDataValue,
+                                       ModelParams const& input_img_params,
+                                       GlobalParams const& globalParams,
+                                       ImageView<PixelMask<PixelGray<float> > >& outputReflectance,
+                                       bool savePhaseAngle,
+                                       ImageView<PixelMask<PixelGray<float> > >& phaseAngle) {
+  
   //std::cout << "---sun        " << input_img_params.sunPosition << std::endl;
   //std::cout << "---spacecraft " << input_img_params.spacecraftPosition << std::endl;
-  outputReflectance.set_size(surface_normal.cols(), surface_normal.rows());
-  if (savePhaseAngle) phaseAngle.set_size(surface_normal.cols(), surface_normal.rows());
-  for (int y=0; y < (int)outputReflectance.rows(); y++) {
-    for (int x=0; x < (int)outputReflectance.cols(); x++) {
-      Vector3 normal = surface_normal(x, y);
-      if (normal == Vector3()) {
-        outputReflectance(x, y) = 0;
-        outputReflectance(x, y).invalidate();
-        if (savePhaseAngle) phaseAngle(x, y) = std::numeric_limits<double>::quiet_NaN();
-      }else{
-        Vector3 xyz = dem_xyz(x, y);
-        float phaseAngleVal;
-        //outputReflectance(x, y) = (ComputeReflectance(normal, xyz, input_img_params, globalParams, phaseAngleVal) != 0); // temporary!!!
-        outputReflectance(x, y) = ComputeReflectance(normal, xyz, input_img_params, globalParams, phaseAngleVal);
-        if (savePhaseAngle) phaseAngle(x, y) = phaseAngleVal;
-      }
+  outputReflectance.set_size(DEMTile.cols(), DEMTile.rows());
+  if (savePhaseAngle) phaseAngle.set_size(DEMTile.cols(), DEMTile.rows());
+
+  for (int y = 1; y < (int)outputReflectance.rows(); y++) {
+    for (int x = 1; x < (int)outputReflectance.cols(); x++) {
+
+      float outputReflectanceVal, phaseAngleVal;
+      computeReflectanceAtPixel(x, y, DEMTile, DEMGeo, noDEMDataValue, input_img_params, globalParams, savePhaseAngle, outputReflectanceVal, phaseAngleVal);
+      
+      outputReflectance(x, y) = outputReflectanceVal;
+      if (savePhaseAngle) phaseAngle(x, y) = phaseAngleVal;
     }
   }
   
   return;
-}
-
-float photometry::computeImageReflectanceNoWrite(ModelParams const& input_img_params,
-                                                     GlobalParams const& globalParams,
-                                                     ImageView<PixelMask<PixelGray<float> > >& output_img) {
-  
-  std::string input_img_file = input_img_params.inputFilename;
-  std::string DEM_file = input_img_params.meanDEMFilename;
-  std::string shadow_file = input_img_params.shadowFilename;
-
-  DiskImageView<PixelMask<PixelGray<uint8> > >  input_img(input_img_file);
-  GeoReference input_img_geo;
-  read_georeference(input_img_geo, input_img_file);
-
-  // warp dem to drg georef
-  ImageView<PixelGray<double> > dem_in_drg_georef_0(input_img.cols(), input_img.rows());
-  DiskImageView<PixelGray<float> >  input_dem_image(DEM_file);
-  GeoReference input_dem_geo;
-  read_georeference(input_dem_geo, DEM_file);
-  dem_in_drg_georef_0 =
-    crop
-    (geo_transform
-     (input_dem_image,
-      input_dem_geo,
-      input_img_geo,
-      ConstantEdgeExtension(),
-      BilinearInterpolation()),
-     bounding_box(input_img)
-     );
-  
-#if 0
-  std::cout << std::endl;
-  std::string tmp  = "./" + prefix_from_filename(suffix_from_filename(input_img_file)) + "_dem.tif";
-  std::cout << "Writing " << tmp << std::endl;
-  write_georeferenced_image(tmp,
-                            dem_in_drg_georef_0,
-                            input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
-#endif
-    
-  // grow no-data areas to avoid bogus values created by interpolating
-  // data with no-data
-  ImageView<PixelGray<double> > dem_in_drg_georef = copy(dem_in_drg_georef_0);
-  int nodata = globalParams.noDEMDataValue;
-  for (int y=1; y < (int)dem_in_drg_georef.rows()-1; y++) {
-    for (int x=1; x < (int)dem_in_drg_georef.cols()-1; x++) {
-
-#define CHECK_PIX(dx,dy) \
-  if (dem_in_drg_georef_0(x+dx, y+dy) == nodata) { \
-    dem_in_drg_georef(x, y) = nodata; \
-    continue; \
-  }
-
-      CHECK_PIX(-1, -1);
-      CHECK_PIX(-1,  0);
-      CHECK_PIX(-1,  1);
-      CHECK_PIX( 0, -1);
-      CHECK_PIX( 0,  1);
-      CHECK_PIX( 1, -1);
-      CHECK_PIX( 1,  0);
-      CHECK_PIX( 1,  1);
-    }
-  }
-
-  ImageView<Vector3> dem_xyz;
-  ImageView<Vector3> surface_normal;
-  
-  bool savePhaseAngle = false;
-  ImageView<PixelMask<PixelGray<float> > > phaseAngle;
-  computeXYZandSurfaceNormal(dem_in_drg_georef, input_img_geo, globalParams.noDEMDataValue, // Inputs 
-                             dem_xyz, surface_normal                                        // Outputs
-                             );
-  computeReflectanceAux(dem_xyz, surface_normal,  
-                        input_img_params,
-                        globalParams,  
-                        output_img,
-                        savePhaseAngle, phaseAngle
-                        );
-  
-  // compute average reflectance
-  int count = 0;
-  float reflectance_sum = 0.0;
-  DiskImageView<PixelMask<PixelGray<uint8> > >  shadowImage(shadow_file);
-  for (int y=0; y < (int)output_img.rows(); y++) {
-    for (int x=0; x < (int)output_img.cols(); x++) {
-      float refl = output_img(x, y);
-      if ((refl != 0.0) && (shadowImage(x, y) == 0)){ //valid non zero reflectance
-        reflectance_sum += refl;
-        count++;
-      }
-    }
-  }
-  float avg_reflectance = reflectance_sum / count;
-
-  printf("avg_reflectance = %f\n", avg_reflectance);
-  return avg_reflectance;
 }
 
 float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
@@ -586,6 +359,8 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
       exit(1);
     }
 
+    //system("echo top1 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
     // We need to keep in mind that the tile is padded with globalParams.pixelPadding pixels on each side.
     // To avoid double-counting pixels, skip them if they are part of the padding and not
     // of the tile proper.
@@ -620,6 +395,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
           }
         }
       }
+      //system("echo top2 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
       if (!hasGoodPixels) continue;
     }
       
@@ -631,7 +407,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
     }
     InterpolationView<EdgeExtensionView<ImageView<float>, ConstantEdgeExtension>, BilinearInterpolation>
       interp_weightsSum = interpolate(weightsSum,
-                                       BilinearInterpolation(), ConstantEdgeExtension());
+                                      BilinearInterpolation(), ConstantEdgeExtension());
     
     ImageView<PixelMask<PixelGray<float> > > Reflectance;
     if (globalParams.reflectanceType != NO_REFL){
@@ -640,19 +416,16 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
       // fast the quantities dem_xyz and surface_normal which are
       // needed only temporarily. They take a lot of memory being
       // images of vectors.
-      ImageView<Vector3> dem_xyz, surface_normal;
-      photometry::computeXYZandSurfaceNormal(DEMTile, DEMGeo, noDEMDataValue,
-                                                 dem_xyz, surface_normal
-                                                 );
       bool savePhaseAngle = false;
       ImageView<PixelMask<PixelGray<float> > > phaseAngle;
-      computeReflectanceAux(dem_xyz, surface_normal,
+      computeReflectanceAux(DEMTile, DEMGeo, noDEMDataValue,
                             input_img_params, globalParams,  
                             Reflectance, // output
                             savePhaseAngle,
                             phaseAngle  // output  
                             );
-      //system("echo reflectance_xyz top is $(top -u $(whoami) -b -n 1|grep lt-reconstruct)");
+      
+      //system("echo top3 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
     }else{
       // The reflectance is set to 1.
       Reflectance.set_size(DEMTile.cols(), DEMTile.rows());
@@ -665,7 +438,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
     }
     
     InterpolationView<EdgeExtensionView<ImageView< PixelMask<PixelGray<float> > >,
-                                        ConstantEdgeExtension>, BilinearInterpolation>
+      ConstantEdgeExtension>, BilinearInterpolation>
       interp_reflectance = interpolate(Reflectance,
                                        BilinearInterpolation(), ConstantEdgeExtension());
     
@@ -691,6 +464,8 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
     InterpolationView<EdgeExtensionView<ImageView< PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
       interp_albedo = interpolate(albedoTile,
                                   BilinearInterpolation(), ConstantEdgeExtension());
+
+    //system("echo top4 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
 
     // Iterate only over the portion of the image intersecting the DEM tile
     Vector2 beg_pixel = input_img_geo.lonlat_to_pixel(Vector2(min_tile_x, max_tile_y));
@@ -754,7 +529,7 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
       }
           
     }
-    //system("echo reflectance top is $(top -u $(whoami) -b -n 1|grep lt-reconstruct)");
+    //system("echo top5 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
   }
 
   if (globalParams.initExposure){
@@ -774,10 +549,12 @@ float photometry::actOnImage(std::vector<ImageRecord> & DEMTiles,
   return 0;
 }
 
+// --------- Only old code below -------------------
+
 //computes a reflectance image
 //author: Ara Nefian
-float photometry::computeImageReflectance(ModelParams const& input_img_params,
-                                              GlobalParams const& globalParams) {
+float photometry::computeImageReflectanceOld(ModelParams const& input_img_params,
+                                             GlobalParams const& globalParams) {
   std::string input_img_file = input_img_params.inputFilename;
   std::string output_img_file = input_img_params.reliefFilename;;
 
@@ -787,9 +564,9 @@ float photometry::computeImageReflectance(ModelParams const& input_img_params,
 
   ImageView<PixelMask<PixelGray<float> > > output_img;
   float avg_reflectance =
-    computeImageReflectanceNoWrite(input_img_params,
-                                   globalParams,
-                                   output_img);
+    computeImageReflectanceNoWriteOld(input_img_params,
+                                      globalParams,
+                                      output_img);
 
 
   std::cout << "Writing " << output_img_file << std::endl;
@@ -805,9 +582,9 @@ float photometry::computeImageReflectance(ModelParams const& input_img_params,
 
 //computes a reflectance image
 //author: Ara Nefian
-float photometry::computeImageReflectance(ModelParams const& input_img_params,
-                                              ModelParams const& overlap_img_params,
-                                              GlobalParams const& globalParams) {
+float photometry::computeImageReflectanceOld(ModelParams const& input_img_params,
+                                             ModelParams const& overlap_img_params,
+                                             GlobalParams const& globalParams) {
   int l, k;
   int count = 0;
   float avg_reflectance = 0.0;
@@ -837,9 +614,9 @@ float photometry::computeImageReflectance(ModelParams const& input_img_params,
   int x, y;
 
   InterpolationView<EdgeExtensionView<EdgeExtensionView<DiskImageView<PixelGray<float> >, ConstantEdgeExtension>, ConstantEdgeExtension>, BilinearInterpolation>
-      interp_dem_image = interpolate(edge_extend(input_dem_image.impl(),
-                                                 ConstantEdgeExtension()),
-                                     BilinearInterpolation());
+    interp_dem_image = interpolate(edge_extend(input_dem_image.impl(),
+                                               ConstantEdgeExtension()),
+                                   BilinearInterpolation());
 
 
 
@@ -953,5 +730,233 @@ float photometry::computeImageReflectance(ModelParams const& input_img_params,
                             input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
 
   return reflectance_ratio;
+}
+
+//generates the normal of a point p1 from the 3D coordinates of p1, p2, p3
+//this function is currently buggy. Needs to be fixed and this will replace
+//computeNormalFrom3DPoints
+Vector3
+photometry::computeNormalFrom3DPointsGeneral(Vector3 p1,
+                                             Vector3 p2,
+                                             Vector3 p3) {
+  return -normalize(cross_prod(p2-p1,p3-p1));
+}
+
+//generates the normal of a point p1 from the 3D coordinates of p1, p2, p3
+//assumes unit dstance between adjacent pixels in x, y coordinates
+//this function will be grandfathered
+//author Ara Nefian
+Vector3
+photometry::computeNormalFrom3DPoints(Vector3 p1, Vector3 p2,
+                                      Vector3 p3) {
+  Vector3 normal;
+
+  normal[0] = p1[2]-p2[2];
+  normal[1] = p1[2]-p3[2];
+  normal[2] = -1;
+
+  return normalize(normal);
+}
+
+//computes the Lunar-Lambertian reflectance mode
+//Vector3  sunpos: the 3D coordinates of the Sun relative to the center of the Moon
+//Vector2 lon_lat is a 2D vector. First element is the longitude and the second the latitude
+//author Ara Nefian
+float
+photometry::computeLunarLambertianReflectanceFromNormalOld(Vector3 sunPos, Vector3 viewPos, Vector3 xyz,  Vector3 normal, float B_0, float L) {
+  float reflectance;
+
+  //compute /mu_0 = cosine of the angle between the light direction and the surface normal.
+  // sun coordinates relative to the xyz point on the Moon surface
+  Vector3 sunDirection = normalize(sunPos-xyz);
+  float mu_0 = dot_prod(sunDirection,normal);
+
+  //compute  /mu = cosine of the angle between the viewer direction and the surface normal.
+  // viewer coordinates relative to the xyz point on the Moon surface
+  Vector3 viewDirection = normalize(viewPos-xyz);
+  float mu = dot_prod(viewDirection,normal);
+
+  reflectance = B_0*((2*L*mu_0/(mu_0+mu)) + (1-L)*mu_0 );
+  return reflectance;
+}
+
+void photometry::computeXYZandSurfaceNormalOld(ImageView<PixelGray<float> > const& DEMTile,
+                                               cartography::GeoReference const& DEMGeo,
+                                               float noDEMDataValue,
+                                               ImageView<Vector3> & dem_xyz,
+                                               ImageView<Vector3> & surface_normal){
+
+
+  // convert dem altitude to xyz cartesian pixels
+  dem_xyz = geodetic_to_cartesian( dem_to_geodetic( DEMTile, DEMGeo ),
+                                   DEMGeo.datum() );
+
+  // transfer noDEMDataValue values
+  for (int y=0; y < (int)dem_xyz.rows(); y++) {
+    for (int x=0; x < (int)dem_xyz.cols(); x++) {
+      if (DEMTile(x, y) == noDEMDataValue) {
+        dem_xyz(x, y) = Vector3();
+      }
+    }
+  }  
+
+  // Init the surface normal to zero
+  surface_normal.set_size(dem_xyz.cols(), dem_xyz.rows());
+  for (int y=0; y < (int)surface_normal.rows(); y++) {
+    for (int x=0; x < (int)surface_normal.cols(); x++) {
+      surface_normal(x, y) = Vector3();
+    }
+  }
+
+  for (int y=1; y < (int)surface_normal.rows(); y++) {
+    for (int x=1; x < (int)surface_normal.cols(); x++) {
+      
+      Vector3 base = dem_xyz(x, y);
+      if (base == Vector3()) {
+        continue;
+      }
+      Vector3 x1 = dem_xyz(x-1, y);
+      if (x1 == Vector3()) {
+        continue;
+      }
+      Vector3 y1 = dem_xyz(x, y-1);
+      if (y1 == Vector3()) {
+        continue;
+      }
+
+      Vector3 dx = base - x1;
+      Vector3 dy = base - y1;
+      surface_normal(x, y) = -normalize(cross_prod(dx, dy));
+    }
+  }
+
+  return;
+}
+
+void photometry::computeReflectanceAuxOld(ImageView<Vector3> const& dem_xyz,
+                                          ImageView<Vector3> const& surface_normal,
+                                          ModelParams const& input_img_params,
+                                          GlobalParams const& globalParams,
+                                          ImageView<PixelMask<PixelGray<float> > >& outputReflectance,
+                                          bool savePhaseAngle,
+                                          ImageView<PixelMask<PixelGray<float> > >& phaseAngle) {
+  
+  //std::cout << "---sun        " << input_img_params.sunPosition << std::endl;
+  //std::cout << "---spacecraft " << input_img_params.spacecraftPosition << std::endl;
+  outputReflectance.set_size(surface_normal.cols(), surface_normal.rows());
+  if (savePhaseAngle) phaseAngle.set_size(surface_normal.cols(), surface_normal.rows());
+  for (int y=0; y < (int)outputReflectance.rows(); y++) {
+    for (int x=0; x < (int)outputReflectance.cols(); x++) {
+      Vector3 normal = surface_normal(x, y);
+      if (normal == Vector3()) {
+        outputReflectance(x, y) = 0;
+        outputReflectance(x, y).invalidate();
+        if (savePhaseAngle) phaseAngle(x, y) = std::numeric_limits<double>::quiet_NaN();
+      }else{
+        Vector3 xyz = dem_xyz(x, y);
+        float phaseAngleVal;
+        //outputReflectance(x, y) = (ComputeReflectance(normal, xyz, input_img_params, globalParams, phaseAngleVal) != 0); // temporary!!!
+        outputReflectance(x, y) = ComputeReflectance(normal, xyz, input_img_params, globalParams, phaseAngleVal);
+        if (savePhaseAngle) phaseAngle(x, y) = phaseAngleVal;
+      }
+    }
+  }
+  
+  return;
+}
+
+float photometry::computeImageReflectanceNoWriteOld(ModelParams const& input_img_params,
+                                                    GlobalParams const& globalParams,
+                                                    ImageView<PixelMask<PixelGray<float> > >& output_img) {
+  
+  std::string input_img_file = input_img_params.inputFilename;
+  std::string DEM_file = input_img_params.meanDEMFilename;
+  std::string shadow_file = input_img_params.shadowFilename;
+
+  DiskImageView<PixelMask<PixelGray<uint8> > >  input_img(input_img_file);
+  GeoReference input_img_geo;
+  read_georeference(input_img_geo, input_img_file);
+
+  // warp dem to drg georef
+  ImageView<PixelGray<double> > dem_in_drg_georef_0(input_img.cols(), input_img.rows());
+  DiskImageView<PixelGray<float> >  input_dem_image(DEM_file);
+  GeoReference input_dem_geo;
+  read_georeference(input_dem_geo, DEM_file);
+  dem_in_drg_georef_0 =
+    crop
+    (geo_transform
+     (input_dem_image,
+      input_dem_geo,
+      input_img_geo,
+      ConstantEdgeExtension(),
+      BilinearInterpolation()),
+     bounding_box(input_img)
+     );
+  
+#if 0
+  std::cout << std::endl;
+  std::string tmp  = "./" + prefix_from_filename(suffix_from_filename(input_img_file)) + "_dem.tif";
+  std::cout << "Writing " << tmp << std::endl;
+  write_georeferenced_image(tmp,
+                            dem_in_drg_georef_0,
+                            input_img_geo, TerminalProgressCallback("{Core}","Processing:"));
+#endif
+    
+  // grow no-data areas to avoid bogus values created by interpolating
+  // data with no-data
+  ImageView<PixelGray<double> > dem_in_drg_georef = copy(dem_in_drg_georef_0);
+  int nodata = globalParams.noDEMDataValue;
+  for (int y=1; y < (int)dem_in_drg_georef.rows()-1; y++) {
+    for (int x=1; x < (int)dem_in_drg_georef.cols()-1; x++) {
+
+#define CHECK_PIX(dx,dy)                                \
+      if (dem_in_drg_georef_0(x+dx, y+dy) == nodata) {  \
+        dem_in_drg_georef(x, y) = nodata;               \
+        continue;                                       \
+      }
+
+      CHECK_PIX(-1, -1);
+      CHECK_PIX(-1,  0);
+      CHECK_PIX(-1,  1);
+      CHECK_PIX( 0, -1);
+      CHECK_PIX( 0,  1);
+      CHECK_PIX( 1, -1);
+      CHECK_PIX( 1,  0);
+      CHECK_PIX( 1,  1);
+    }
+  }
+
+  ImageView<Vector3> dem_xyz;
+  ImageView<Vector3> surface_normal;
+  
+  bool savePhaseAngle = false;
+  ImageView<PixelMask<PixelGray<float> > > phaseAngle;
+  computeXYZandSurfaceNormalOld(dem_in_drg_georef, input_img_geo, globalParams.noDEMDataValue, // Inputs 
+                                dem_xyz, surface_normal                                        // Outputs
+                                );
+  computeReflectanceAuxOld(dem_xyz, surface_normal,  
+                           input_img_params,
+                           globalParams,  
+                           output_img,
+                           savePhaseAngle, phaseAngle
+                           );
+  
+  // compute average reflectance
+  int count = 0;
+  float reflectance_sum = 0.0;
+  DiskImageView<PixelMask<PixelGray<uint8> > >  shadowImage(shadow_file);
+  for (int y=0; y < (int)output_img.rows(); y++) {
+    for (int x=0; x < (int)output_img.cols(); x++) {
+      float refl = output_img(x, y);
+      if ((refl != 0.0) && (shadowImage(x, y) == 0)){ //valid non zero reflectance
+        reflectance_sum += refl;
+        count++;
+      }
+    }
+  }
+  float avg_reflectance = reflectance_sum / count;
+
+  printf("avg_reflectance = %f\n", avg_reflectance);
+  return avg_reflectance;
 }
 

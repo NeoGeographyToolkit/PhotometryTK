@@ -1,7 +1,18 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
 
 #include <iostream>
@@ -25,6 +36,531 @@ using namespace vw::cartography;
 
 using namespace photometry;
 using namespace std;
+
+namespace photometry {
+  
+  template <class realType>
+  void cropImageAndGeoRefInPlace(// Inputs
+                                 Vector2 begLonLat, Vector2 endLonLat,
+                                 ImageView< PixelMask<PixelGray<realType> > > & Image,
+                                 cartography::GeoReference & geoRef){
+
+    // Crop an image to the region with corners given by begLonLat,
+    // endLonLat.  Adjust the GeoReference accordingly.  The point
+    // begLonLat is the upper-left region corner, and endLonLat is the
+    // lower-right region corner.
+    
+    // This is not a general purpose routine, it gets tweaked as
+    // needed for the purpose of saving albedo, and that's why it does
+    // not belong in a shared file.
+    
+    Vector2 begPixel = geoRef.lonlat_to_pixel(begLonLat);
+    Vector2 endPixel = geoRef.lonlat_to_pixel(endLonLat);
+
+    int begCol = std::max(0, (int)ceil(begPixel(0)));
+    int begRow = std::max(0, (int)ceil(begPixel(1)));
+    // We add 1 below to keep the bottom/right pixels which
+    // intersect the boundary of the desired box.
+    int endCol = std::min( Image.cols(), (int)round(endPixel(0))+1 );
+    int endRow = std::min( Image.rows(), (int)round(endPixel(1))+1 );
+
+    int numCols = std::max(endCol - begCol, 0);
+    int numRows = std::max(endRow - begRow, 0);
+
+    Image = crop(Image, BBox2i(begCol, begRow, numCols, numRows));
+    geoRef = vw::cartography::crop(geoRef, begCol, begRow);
+    
+    //system("echo top_inplace is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
+    return;
+  }
+  
+}    
+
+double
+photometry::actOnTile(bool isLastIter, bool computeErrors,
+                      std::string sampleTileFile,
+                      ImageRecord albedoTileCorners,
+                      std::string DEMTileFile,   std::string albedoTileFile,
+                      std::string errorTileFile, std::string weightsSumFile,
+                      std::vector<ModelParams> & overlap_img_params,
+                      GlobalParams globalParams,
+                      phaseCoeffsData & PCD
+                      ){
+
+  // Perform one of the several calculations for the given tile:
+
+  // 1. Sum the weights at each pixel in the tile (skip weights at which
+  //    the image is below threshold or the reflectance is invalid)
+  // 2. Initialize the albedo tile
+  // 3. Update the albedo tile
+  // 4. update the phase coefficients
+  // 5. Compute the albedo errors.
+  
+  // We use double precision for the numerical computations, even
+  // though some inputs are float. This is more important when the
+  // albedo is updated, and less so when it is initialized.
+
+  // If we initialize the albedo for the given tile, read all the
+  // images which overlap with it, and do a weighted average involving
+  // the images, weights, reflectance, and exposure.
+
+  bool useReflectance = (globalParams.reflectanceType != NO_REFL);
+  if ( globalParams.updateTilePhaseCoeffs && !useReflectance ){
+    std::cout << "ERROR: Cannot update the phase coefficients if "
+              << "we don't use perform the reflectance computation" << std::endl;
+    exit(1);
+  }
+  if ( (globalParams.updateTilePhaseCoeffs || globalParams.computeWeightsSum) && isLastIter){
+    std::cout << "ERROR: Cannot update sum the weights/compute the phase coefficients "
+              << "at the last iteration" << std::endl;
+    exit(1);
+  }
+
+  // When we compute the error, we need only one of albedoTile and
+  // inputAlbedoTile. That's why in that case we alias one to the
+  // other. This optimization was necessary to reduce the memory usage
+  // at 10mpp.
+  ImageView<PixelMask<PixelGray<float> > > *albedoTilePtr, *inputAlbedoTilePtr;
+  if (computeErrors && !globalParams.updateAlbedo){
+    albedoTilePtr      = new ImageView<PixelMask<PixelGray<float> > >;
+    inputAlbedoTilePtr = albedoTilePtr;
+  }else{
+    albedoTilePtr      = new ImageView<PixelMask<PixelGray<float> > >;
+    inputAlbedoTilePtr = new ImageView<PixelMask<PixelGray<float> > >;
+  }
+  ImageView<PixelMask<PixelGray<float> > > & albedoTile      = *albedoTilePtr;
+  ImageView<PixelMask<PixelGray<float> > > & inputAlbedoTile = *inputAlbedoTilePtr;
+
+  // The cost function is the weighted sum of squares of errors over
+  // all the pixels in the given tile (excluding the padded region at
+  // the boundary).
+  double costFunVal = 0.0;
+
+  // Create the albedo tile using the current tile corners and
+  // the georeference information.
+  GeoReference albedoTileGeo;
+  read_georeference(albedoTileGeo, sampleTileFile);
+  createGeoRefAndTileWithGivenCorners(albedoTileCorners.west, albedoTileCorners.east,
+                                      albedoTileCorners.south, albedoTileCorners.north,
+                                      albedoTileGeo, albedoTile // outputs
+                                      );
+  //system("echo top1 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
+  ImageView<float> weightsSum;
+  if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum){
+    // The weights were already summed up. Read them.
+    weightsSum = copy(DiskImageView<float>(weightsSumFile));
+  }
+
+  ImageView<Vector3> dem_xyz, surface_normal;
+  ImageView<PixelGray<float> > DEMTile;
+  GeoReference DEMGeo;
+  float noDEMDataValue;
+  if (useReflectance){
+    DEMTile = copy(DiskImageView<PixelGray<float> >(DEMTileFile));
+    read_georeference(DEMGeo, DEMTileFile);
+    if ( !readNoDEMDataVal(DEMTileFile, noDEMDataValue)){
+      std::cerr << "ERROR: Could not read the NoData Value from " << DEMTileFile << std::endl;
+      exit(1);
+    }
+
+    // Sanity check: The albedo and DEM tiles must have the same size.
+    if (DEMTile.rows() != albedoTile.rows() || DEMTile.cols() != albedoTile.cols()){
+      std::cout << "ERROR: We expect the DEM and albedo tiles to have the same number "
+                << "of rows/columns." << std::endl;
+      exit(1);
+    }
+  }
+  //system("echo top2 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+    
+  ImageView<float> norm(albedoTile.cols(), albedoTile.rows());
+  GeoReference weightsSum_geo;
+  if (globalParams.useNormalizedCostFun && globalParams.computeWeightsSum){
+    weightsSum_geo = albedoTileGeo; 
+  }
+  
+  //initialize  albedoTile
+  for (int k = 0 ; k < albedoTile.rows(); ++k) {
+    for (int l = 0; l < albedoTile.cols(); ++l) {
+      albedoTile(l, k) = 0;
+      albedoTile(l, k).invalidate(); // a pixel is invalid unless proven otherwise
+      norm(l, k) = 0;
+    }
+  }
+
+  // If we do an update or compute the errors, we need to read in the albedo before the update.
+  bool willReadInputTile = (!globalParams.computeWeightsSum && !globalParams.initAlbedo);  
+  if (willReadInputTile){
+    std::ifstream aFile(albedoTileFile.c_str());
+    if (!aFile) return 0;
+    std::cout << "Reading " << albedoTileFile << std::endl;
+    // Copy to a float, to be able to do accurate calculations
+    inputAlbedoTile = copy(DiskImageView<PixelMask<PixelGray<uint8> > >(albedoTileFile));
+
+    // Sanity check: the current albedo tile and the input albedo tile must have the same size.
+    if (albedoTile.rows() != inputAlbedoTile.rows() || albedoTile.cols() != inputAlbedoTile.cols()){
+      std::cout << "ERROR: The albedo tile read from disk has incorrect size. Perhaps its padding got removed?" << std::endl;
+      exit(1);
+    }
+  }
+  //system("echo top3 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
+  ImageView<PixelMask<PixelGray<float> > > errorTile;
+  GeoReference errorTile_geo;
+  if (computeErrors){
+    read_georeference(errorTile_geo, albedoTileFile);
+    errorTile.set_size(albedoTile.cols(), albedoTile.rows());
+    for (int k = 0 ; k < errorTile.rows(); ++k) {
+      for (int l = 0; l < errorTile.cols(); ++l) {
+        errorTile(l, k) = 0;
+        errorTile(l, k).invalidate(); // a pixel is invalid unless proven otherwise
+      }
+    }
+  }
+  
+  // The lon-lat coordinates of tile corners without padding.
+  double min_tile_x, max_tile_x, min_tile_y, max_tile_y;
+  getTileCornersWithoutPadding(// Inputs
+                               albedoTile.cols(), albedoTile.rows(), albedoTileGeo,  
+                               globalParams.tileSize, globalParams.pixelPadding,  
+                               // Outputs
+                               min_tile_x, max_tile_x,  
+                               min_tile_y, max_tile_y
+                               );
+
+  // These are need for finding the components of the phase coefficients per tile
+  PCD.phaseCoeffC1_num = 0.0;
+  PCD.phaseCoeffC1_den = 0.0;
+  PCD.phaseCoeffC2_num = 0.0;
+  PCD.phaseCoeffC2_den = 0.0;
+
+  for (int i = 0; i < (int)overlap_img_params.size(); i++){
+
+    printf("overlap_img = %s with %s\n", albedoTileFile.c_str(), overlap_img_params[i].inputFilename.c_str());
+    
+    // Read the weights only if really needed
+    bool useWeights = (globalParams.useWeights != 0);
+    if (useWeights){
+      ReadWeightsParamsFromFile(overlap_img_params[i]);
+    }
+
+    // The georeference for the entire overlap image
+    GeoReference overlap_geo_orig;
+    read_georeference(overlap_geo_orig, overlap_img_params[i].inputFilename);
+
+    // Skip the current tile if there are no valid image pixels inside
+    // of it. This optimization is necessary, but is a big of a hack
+    // since it won't apply if we don't use weights (which is rare).
+    if (useWeights){
+      bool hasGoodPixels = false;
+      for (int k = 0; k < albedoTile.rows(); ++k) {
+        if (hasGoodPixels) break;          
+        for (int l = 0; l < albedoTile.cols(); ++l) {
+          // We need the pixel coordinates in the ENTIRE image, as opposed to its coordinates
+          // in the subimage, for the purpose of computing the weight.
+          Vector2 albedoTile_pix(l,k);
+          Vector2 lon_lat = albedoTileGeo.pixel_to_lonlat(albedoTile_pix);
+          Vector2 overlap_pix_orig = overlap_geo_orig.lonlat_to_pixel(lon_lat);
+          double weight = ComputeLineWeightsHV(overlap_pix_orig, overlap_img_params[i]);
+          if (weight != 0.0){
+            hasGoodPixels = true;
+            break;
+          }
+        }
+      }
+      //system("echo top4 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+      if (!hasGoodPixels) continue;
+    }
+
+    // The input DRG must be uint8
+    enforceUint8Img(overlap_img_params[i].inputFilename);
+
+    // Read only the portion of the overlap image which intersects
+    // the current tile to save on memory.  Create the appropriate
+    // georeference for it.
+    ImageView<PixelMask<PixelGray<float> > > overlap_img;
+    GeoReference overlap_geo;
+    Vector2 begTileLonLat = albedoTileGeo.pixel_to_lonlat(Vector2(0, 0));
+    Vector2 endTileLonLat = albedoTileGeo.pixel_to_lonlat(Vector2(albedoTile.cols()-1, albedoTile.rows()-1));
+    bool success = getSubImageWithMargin< PixelMask<PixelGray<uint8> >, PixelMask<PixelGray<float> > >
+      (// Inputs
+       begTileLonLat, endTileLonLat, overlap_img_params[i].inputFilename,  
+       // Outputs
+       overlap_img, overlap_geo
+       );
+    //system("echo top5 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+    if (!success) continue;
+
+    InterpolationView<EdgeExtensionView<ImageView<PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
+      interp_overlap_img = interpolate(overlap_img, BilinearInterpolation(), ConstantEdgeExtension());
+    
+    bool savePhaseAngle = globalParams.updateTilePhaseCoeffs;
+    
+    for (int k = 1; k < albedoTile.rows(); ++k) { // need to start from 1 to be able to compute the normal
+      for (int l = 1; l < albedoTile.cols(); ++l) {
+
+        Vector2 albedoTile_pix(l,k);
+
+        Vector2 lon_lat = albedoTileGeo.pixel_to_lonlat(albedoTile_pix);
+              
+        if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum && weightsSum(l, k) == 0) continue;
+        
+        double weight = 1.0;
+        if (useWeights){
+          // We need the pixel coordinates in the ENTIRE image, as opposed to its coordinates
+          // in the subimage, for the purpose of computing the weight.
+          Vector2 overlap_pix_orig = overlap_geo_orig.lonlat_to_pixel(lon_lat);
+          weight = ComputeLineWeightsHV(overlap_pix_orig, overlap_img_params[i]);
+        }
+        if (weight == 0.0) continue;
+
+        // Normalize to ensure that all weights for all images at given pixel add up to 1
+        if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum) weight /= weightsSum(l, k);
+
+        //check for overlap between the output image and the input DEM image
+        Vector2 overlap_pix = overlap_geo.lonlat_to_pixel(lon_lat);
+        double overlap_x    = overlap_pix[0];
+        double overlap_y    = overlap_pix[1];
+
+        //image dependent part of the code  - START
+        
+        // Check for valid overlap_img pixels
+        int j0 = (int)floor(overlap_x), j1 = (int)ceil(overlap_x);
+        int i0 = (int)floor(overlap_y), i1 = (int)ceil(overlap_y);
+        // Note: Below must do overlap_x <= overlap_img.cols()-1
+        // rather than overlap_x < overlap_img.cols().
+        bool isValidOverlap = ( (overlap_x >= 0) && (overlap_x <= overlap_img.cols()-1 )        &&
+                                (overlap_y >= 0) && (overlap_y <= overlap_img.rows()-1 )        &&
+                                is_valid(overlap_img(j0, i0))  && is_valid(overlap_img(j0, i1)) &&
+                                is_valid(overlap_img(j1, i0))  && is_valid(overlap_img(j1, i1)) 
+                                );
+        if (!isValidOverlap) continue;
+        
+        // We have a valid pixel.
+        albedoTile(l,k).validate();
+        if (computeErrors) errorTile(l,k).validate();
+
+        float R = 1.0, phaseAngle = 0.0;
+        if (useReflectance){
+          computeReflectanceAtPixel(l, k, DEMTile.impl(), DEMGeo, noDEMDataValue,
+                                    overlap_img_params[i],
+                                    globalParams,
+                                    savePhaseAngle,
+                                    R, phaseAngle // outputs
+                                    );
+        }
+        
+        if (R == 0.0) continue; // no reflectance data
+
+        double exposureRefl = overlap_img_params[i].exposureTime*R;
+        
+        // Check if the image is above the shadow threshold
+        double t = getShadowThresh(globalParams, exposureRefl);
+        bool isBlack = !((double)overlap_img(j0, i0) >= t &&
+                         (double)overlap_img(j0, i1) >= t &&
+                         (double)overlap_img(j1, i0) >= t &&
+                         (double)overlap_img(j1, i1) >= t
+                         );
+        if (isBlack) continue; // No image data
+
+        // See an explanation of the logic below in reconstruct.cc.
+        if (globalParams.forceMosaic){
+          overlap_img_params[i].exposureTime = globalParams.TRConst;
+          R = 1.0;
+          exposureRefl = overlap_img_params[i].exposureTime*R;
+        }
+        
+        PixelMask<PixelGray<float> > overlap_img_pixel = interp_overlap_img(overlap_x, overlap_y);
+        
+        if (globalParams.computeWeightsSum){
+
+          if (globalParams.useNormalizedCostFun) norm(l,k) = norm(l,k) + weight;
+
+        }else if (globalParams.initAlbedo){
+          
+          //New averaging
+          albedoTile(l, k) = (double)albedoTile(l, k) + ((double)overlap_img_pixel)*exposureRefl*weight;
+          norm(l,k)        = norm(l,k) + exposureRefl*exposureRefl*weight;
+          // Old averaging
+          //albedoTile(l, k) = (float)albedoTile(l, k) + ((float)overlap_img_pixel*weight)/exposureRefl;
+          //norm(l,k) = norm(l,k) + weight;
+          
+        }else if (willReadInputTile && is_valid(inputAlbedoTile(l, k))){
+
+          double lx = lon_lat(0), ly = lon_lat(1);
+          bool isInTile = (min_tile_x <= lx && lx < max_tile_x && min_tile_y <= ly && ly < max_tile_y);
+
+          // Update albedo or update phase coefficients or compute errors
+          double diff = (double)overlap_img_pixel - ((double)inputAlbedoTile(l, k))*exposureRefl;
+          if (globalParams.updateAlbedo){
+            // Update the albedo
+            albedoTile(l, k) = (double)albedoTile(l, k) + diff*exposureRefl*weight;
+            norm(l,k)        = norm(l,k) + exposureRefl*exposureRefl*weight;
+          }else if (globalParams.updateTilePhaseCoeffs && isInTile){
+            // Update the phase coefficients components for the current tile
+            double alpha   = phaseAngle;
+            double e       = exp(-globalParams.phaseCoeffC1*alpha);
+            // The derivative of A*T*R in respect to the phase coeffs,
+            // where R = (exp(-A1*alpha) + A2)*lambertian
+            double derivA2 = ((double)inputAlbedoTile(l, k))*exposureRefl/(e + globalParams.phaseCoeffC2);
+            double derivA1 = derivA2*(-alpha*e);
+            PCD.phaseCoeffC1_num += diff*derivA1*weight;
+            PCD.phaseCoeffC1_den += derivA1*derivA1*weight;
+            PCD.phaseCoeffC2_num += diff*derivA2*weight;
+            PCD.phaseCoeffC2_den += derivA2*derivA2*weight;
+          }else if (computeErrors){
+            // Compute the errors
+            errorTile(l, k) = (double)errorTile(l, k) + (diff/exposureRefl)*(diff/exposureRefl)*weight;
+            norm(l,k)       = norm(l,k) + weight;
+          }
+                      
+          if (isInTile){
+            // Accumulate the cost function only for pixels in the tile proper rather than
+            // in the padded region
+            costFunVal += diff*diff*weight; // Weighted sum of squares
+          }
+        }
+
+      }
+      
+    }
+    //image dependent part of the code  - END
+
+    //std::cout << "sun and spacecraft: " << overlap_img_params[i].inputFilename  << ' '
+    //          << overlap_img_params[i].sunPosition  << ' ' << overlap_img_params[i].spacecraftPosition
+    //          << std::endl;
+
+    //system("echo top7 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+  }
+
+  // Nothing else to do if all we care about is updating the phase coefficients
+  if (globalParams.updateTilePhaseCoeffs) return costFunVal;
+
+  if (globalParams.useNormalizedCostFun && globalParams.computeWeightsSum){
+    std::cout << "Writing: " << weightsSumFile << std::endl;
+    write_georeferenced_image(weightsSumFile,
+                              norm,
+                              weightsSum_geo, TerminalProgressCallback("{Core}","Processing:"));
+    
+    return 0;
+  }
+  
+  //compute the mean albedo value
+  int numValid = 0;
+  for (int k = 0 ; k < albedoTile.rows(); ++k) {
+    for (int l = 0; l < albedoTile.cols(); ++l) {
+
+      // When updating the albedo, if the input albedo is invalid, then the updated
+      // albedo is also invalid.
+      if (willReadInputTile && globalParams.updateAlbedo && !is_valid(inputAlbedoTile(l, k))){
+        albedoTile(l,k).invalidate();
+      }
+      if (willReadInputTile && computeErrors && !is_valid(inputAlbedoTile(l, k))){
+        errorTile(l,k).invalidate();
+      }
+      
+      if ( (float)albedoTile(l,k) == 0 ) albedoTile(l,k).invalidate(); // temporary!!!
+        
+      if ( (is_valid(albedoTile(l,k))) && (norm(l, k) != 0) ) {
+          
+        if (globalParams.initAlbedo){
+          // Init tile
+          albedoTile(l, k) = albedoTile(l, k)/norm(l,k);
+        }else if (willReadInputTile && globalParams.updateAlbedo){
+          // Update the tile
+          albedoTile(l, k) = inputAlbedoTile(l, k) + albedoTile(l, k)/norm(l,k);
+        }else{
+          // Compute the errors
+          errorTile(l, k) = errorTile(l, k)/norm(l,k);
+        }
+        numValid++;
+      }
+        
+    }
+  }
+
+  printf("numValid = %d, total = %d\n", numValid, albedoTile.rows()*albedoTile.cols());
+  
+  if (isLastIter){
+
+    // The true albedo is in fact A0*( exp(-A1*alpha) + A2 ), for alpha = 0.
+    // The quantity A0 is what we computed so far, so we must multiply by the remaining factor.
+    if (useReflectance){
+      for (int k = 0; k < albedoTile.rows(); ++k) {
+        for (int l = 0; l < albedoTile.cols(); ++l) {
+          if ( is_valid(albedoTile(l, k)) ) albedoTile(l, k)
+            = (double)albedoTile(l, k)*(1 + globalParams.phaseCoeffC2);
+        }
+      }
+    }
+    
+    // Remove the temporary work padding if this is the last albedo update iteration.
+    cropImageAndGeoRefInPlace(Vector2(min_tile_x, max_tile_y),
+                              Vector2(max_tile_x, min_tile_y),
+                              albedoTile, albedoTileGeo // inputs-outputs
+                              );
+
+  }
+    
+  // Write the albedo tile. Note that we write the albedo tile even if we are in the mode in which
+  // we compute the error. That because, if the error computation is the last iteration, this is the time
+  // at which to crop the albedo tile itself (we could not have cropped it at a previous step,
+  // because we cannot compute the error with a cropped albedo tile).
+  // After cropping the image, if it is made up of only empty pixels, then don't save it.
+  numValid = 0;
+  for (int k = 0; k < albedoTile.rows(); ++k) {
+    for (int l = 0; l < albedoTile.cols(); ++l) {
+      if ( (double)albedoTile(l, k) > 0 ) numValid++;
+    }
+  }
+  if (numValid == 0){
+    if (isLastIter){
+      std::cout << "Removing tile: " << albedoTileFile << " as it does not contain any valid pixels." << std::endl;
+      try { boost::filesystem::remove(albedoTileFile); } catch(...){}
+      return 0;
+    }
+  }else{
+    std::cout << "Writing: " << albedoTileFile << std::endl;
+    write_georeferenced_image(albedoTileFile,
+                              channel_cast<uint8>(clamp(albedoTile, 0.0, 255.0)),
+                              albedoTileGeo, TerminalProgressCallback("{Core}","Processing:"));
+  }
+  
+  if (numValid > 0 && computeErrors){
+    
+    if (isLastIter){
+      // Strip the padding before saving the error to disk
+      cropImageAndGeoRefInPlace(Vector2(min_tile_x, max_tile_y),
+                                Vector2(max_tile_x, min_tile_y),
+                                errorTile, errorTile_geo // inputs-outputs
+                                );
+    }
+    
+    std::cout << "Writing: " << errorTileFile << std::endl;
+    write_georeferenced_image(errorTileFile,
+                              // The scaling below is pretty arbitrary
+                              //channel_cast<uint8>(clamp(errorTile/10.0, 0.0, 255.0)), 
+                              errorTile,
+                              errorTile_geo, TerminalProgressCallback("{Core}","Processing:"));
+  }
+  
+  // Return the cost function value
+  return costFunVal;
+}
+
+void photometry::AppendCostFunToFile(double costFunVal, std::string fileName)
+{
+  // Append the current cost function to the file.
+  FILE *fp;
+  fp = fopen((char*)fileName.c_str(), "a");
+  std::cout << "Writing " << fileName << std::endl;
+  fprintf(fp, "%0.16g\n", costFunVal);
+  fclose(fp);
+}
+
+
+// Only obsolete code below
 
 float ComputeGradient_Albedo(float T, float reflectance) {
   float grad;
@@ -520,518 +1056,6 @@ void photometry::UpdateImageMosaic(ModelParams input_img_params,
                               channel_cast<uint8>(clamp(output_img,0.0,255.0)),
                               input_img_geo, TerminalProgressCallback("photometry","Processing:"));
 
-}
-
-namespace {
-  
-  template <class realType>
-  void cropImageAndGeoRefInPlace(// Inputs
-                                 Vector2 begLonLat, Vector2 endLonLat,
-                                 ImageView< PixelMask<PixelGray<realType> > > & Image,
-                                 cartography::GeoReference & geoRef){
-
-    // Crop an image to the region with corners given by begLonLat,
-    // endLonLat.  Adjust the GeoReference accordingly.  The point
-    // begLonLat is the upper-left region corner, and endLonLat is the
-    // lower-right region corner.
-    
-    // This is not a general purpose routine, it gets tweaked as
-    // needed for the purpose of saving albedo, and that's why it does
-    // not belong in a shared file.
-    
-    Vector2 begPixel = geoRef.lonlat_to_pixel(begLonLat);
-    Vector2 endPixel = geoRef.lonlat_to_pixel(endLonLat);
-
-    int begCol = std::max(0, (int)ceil(begPixel(0)));
-    int begRow = std::max(0, (int)ceil(begPixel(1)));
-    // We add 1 below to keep the bottom/right pixels which
-    // intersect the boundary of the desired box.
-    int endCol = std::min( Image.cols(), (int)round(endPixel(0))+1 );
-    int endRow = std::min( Image.rows(), (int)round(endPixel(1))+1 );
-
-    int numCols = std::max(endCol - begCol, 0);
-    int numRows = std::max(endRow - begRow, 0);
-
-    Image = crop(Image, BBox2i(begCol, begRow, numCols, numRows));
-    geoRef = vw::cartography::crop(geoRef, begCol, begRow);
-
-    return;
-  }
-  
-}    
-
-//-------------------------------------------------------------------------------
-//Below are the functions for albedo reconstruction
-//-------------------------------------------------------------------------------
-
-double
-photometry::actOnTile(bool isLastIter, bool computeErrors,
-                      std::string DEMTileFile,   std::string albedoTileFile,
-                      std::string errorTileFile, std::string weightsSumFile,
-                      std::vector<ModelParams> & overlap_img_params,
-                      GlobalParams globalParams,
-                      phaseCoeffsData & PCD
-                      ){
-
-  // Perform one of the several calculations for the given tile:
-
-  // 1. Sum the weights at each pixel in the tile (skip weights at which
-  //    the image is below threshold or the reflectance is invalid)
-  // 2. Initialize the albedo tile
-  // 3. Update the albedo tile
-  // 4. update the phase coefficients
-  // 5. Compute the albedo errors.
-  
-  // We use double precision for the numerical computations, even
-  // though some inputs are float. This is more important when the
-  // albedo is updated, and less so when it is initialized.
-
-  // If we initialize the albedo for the given tile, read all the
-  // images which overlap with it, and do a weighted average involving
-  // the images, weights, reflectance, and exposure.
-
-  bool useReflectance = (globalParams.reflectanceType != NO_REFL);
-  if ( globalParams.updateTilePhaseCoeffs && !useReflectance ){
-    std::cout << "ERROR: Cannot update the phase coefficients if "
-              << "we don't use perform the reflectance computation" << std::endl;
-    exit(1);
-  }
-  if ( (globalParams.updateTilePhaseCoeffs || globalParams.computeWeightsSum) && isLastIter){
-    std::cout << "ERROR: Cannot update sum the weights/compute the phase coefficients "
-              << "at the last iteration" << std::endl;
-    exit(1);
-  }
-
-  // The cost function is the weighted sum of squares of errors over
-  // all the pixels in the given tile (excluding the padded region at
-  // the boundary).
-  double costFunVal = 0.0;
-
-  std::cout << "Reading " << albedoTileFile << std::endl;
-  ImageView<PixelMask<PixelGray<float> > > albedoTile = copy(DiskImageView<PixelMask<PixelGray<uint8> > > (albedoTileFile));
-  GeoReference albedoTile_geo;
-  read_georeference(albedoTile_geo, albedoTileFile);
-
-  ImageView<float> weightsSum;
-  if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum){
-    // The weights were already summed up. Read them.
-    weightsSum = copy(DiskImageView<float>(weightsSumFile));
-  }
-
-  ImageView<Vector3> dem_xyz, surface_normal;
-  if (useReflectance){
-    // Use a block to de-allocate DEMTile as soon as it is no longer needed.
-    DiskImageView<PixelGray<float> > DEMTile(DEMTileFile);
-    std::cout << "Reading file: "<< DEMTileFile << std::endl;
-    GeoReference DEMGeo;
-    read_georeference(DEMGeo, DEMTileFile);
-    float noDEMDataValue;
-    if ( !readNoDEMDataVal(DEMTileFile, noDEMDataValue)){
-      std::cerr << "ERROR: Could not read the NoData Value from " << DEMTileFile << std::endl;
-      exit(1);
-    }
-      
-    photometry::computeXYZandSurfaceNormal(DEMTile.impl(), DEMGeo, noDEMDataValue,
-                                           dem_xyz, surface_normal
-                                           );
-  }
-    
-  ImageView<float> norm(albedoTile.cols(), albedoTile.rows());
-  GeoReference weightsSum_geo;
-  if (globalParams.useNormalizedCostFun && globalParams.computeWeightsSum){
-    read_georeference(weightsSum_geo, albedoTileFile);
-  }
-
-  //initialize  albedoTile
-  for (int k = 0 ; k < albedoTile.rows(); ++k) {
-    for (int l = 0; l < albedoTile.cols(); ++l) {
-      albedoTile(l, k) = 0;
-      albedoTile(l, k).invalidate(); // a pixel is invalid unless proven otherwise
-      norm(l, k) = 0;
-    }
-  }
-
-  // If we do an update or compute the errors, we need to read in the albedo before the update.
-  ImageView<PixelMask<PixelGray<float> > > inputAlbedoTile;
-  bool willReadInputTile = (!globalParams.computeWeightsSum && !globalParams.initAlbedo);  
-  if (willReadInputTile){
-    std::ifstream aFile(albedoTileFile.c_str());
-    if (!aFile) return 0;
-    std::cout << "Reading " << albedoTileFile << std::endl;
-    // Copy to a float, to be able to do accurate calculations
-    inputAlbedoTile = copy(DiskImageView<PixelMask<PixelGray<uint8> > >(albedoTileFile));
-
-    // Sanity check: if the user is not careful, the padding may have been stripped
-    // from the albedo tile by now, which of course would cause a size mis-match.
-    if (useReflectance){
-      DiskImageView<PixelGray<float> > DEMTile(DEMTileFile);
-      if (DEMTile.rows() != inputAlbedoTile.rows() || DEMTile.cols() != inputAlbedoTile.cols()){
-        std::cout << "ERROR: We expect the DEM and albedo tiles to have the same number "
-                  << "of rows/columns." << std::endl;
-        exit(1);
-      }
-    }
-  }
-  
-  ImageView<PixelMask<PixelGray<float> > > errorTile;
-  GeoReference errorTile_geo;
-  if (computeErrors){
-    read_georeference(errorTile_geo, albedoTileFile);
-    errorTile.set_size(albedoTile.cols(), albedoTile.rows());
-    for (int k = 0 ; k < errorTile.rows(); ++k) {
-      for (int l = 0; l < errorTile.cols(); ++l) {
-        errorTile(l, k) = 0;
-        errorTile(l, k).invalidate(); // a pixel is invalid unless proven otherwise
-      }
-    }
-  }
-  
-  // The lon-lat coordinates of tile corners without padding.
-  double min_tile_x, max_tile_x, min_tile_y, max_tile_y;
-  getTileCornersWithoutPadding(// Inputs
-                               albedoTile.cols(), albedoTile.rows(), albedoTile_geo,  
-                               globalParams.tileSize, globalParams.pixelPadding,  
-                               // Outputs
-                               min_tile_x, max_tile_x,  
-                               min_tile_y, max_tile_y
-                               );
-
-  // These are need for finding the components of the phase coefficients per tile
-  PCD.phaseCoeffA1_num = 0.0;
-  PCD.phaseCoeffA1_den = 0.0;
-  PCD.phaseCoeffA2_num = 0.0;
-  PCD.phaseCoeffA2_den = 0.0;
-
-  for (int i = 0; i < (int)overlap_img_params.size(); i++){
-
-    printf("overlap_img = %s with %s\n", albedoTileFile.c_str(), overlap_img_params[i].inputFilename.c_str());
-    //system("echo date1 is $(date)");
-    
-    // Read the weights only if really needed
-    bool useWeights = (globalParams.useWeights != 0);
-    if (useWeights){
-      ReadWeightsParamsFromFile(overlap_img_params[i]);
-    }
-
-    // The georeference for the entire overlap image
-    GeoReference overlap_geo_orig;
-    read_georeference(overlap_geo_orig, overlap_img_params[i].inputFilename);
-
-    // Skip the current tile if there are no valid image pixels inside
-    // of it. This optimization is necessary, but is a big of a hack
-    // since it won't apply if we don't use weights (which is rare).
-    if (useWeights){
-      bool hasGoodPixels = false;
-      for (int k = 0; k < albedoTile.rows(); ++k) {
-        if (hasGoodPixels) break;          
-        for (int l = 0; l < albedoTile.cols(); ++l) {
-          // We need the pixel coordinates in the ENTIRE image, as opposed to its coordinates
-          // in the subimage, for the purpose of computing the weight.
-          Vector2 albedoTile_pix(l,k);
-          Vector2 lon_lat = albedoTile_geo.pixel_to_lonlat(albedoTile_pix);
-          Vector2 overlap_pix_orig = overlap_geo_orig.lonlat_to_pixel(lon_lat);
-          double weight = ComputeLineWeightsHV(overlap_pix_orig, overlap_img_params[i]);
-          if (weight != 0.0){
-            hasGoodPixels = true;
-            break;
-          }
-        }
-      }
-      if (!hasGoodPixels) continue;
-    }
-    
-    // The input DRG must be uint8
-    enforceUint8Img(overlap_img_params[i].inputFilename);
-
-    // Read only the portion of the overlap image which intersects
-    // the current tile to save on memory.  Create the appropriate
-    // georeference for it.
-    ImageView<PixelMask<PixelGray<float> > > overlap_img;
-    GeoReference overlap_geo;
-    Vector2 begTileLonLat = albedoTile_geo.pixel_to_lonlat(Vector2(0, 0));
-    Vector2 endTileLonLat = albedoTile_geo.pixel_to_lonlat(Vector2(albedoTile.cols()-1, albedoTile.rows()-1));
-    bool success = getSubImageWithMargin< PixelMask<PixelGray<uint8> >, PixelMask<PixelGray<float> > >
-      (// Inputs
-       begTileLonLat, endTileLonLat, overlap_img_params[i].inputFilename,  
-       // Outputs
-       overlap_img, overlap_geo
-       );
-    if (!success) continue;
-
-    InterpolationView<EdgeExtensionView<ImageView<PixelMask<PixelGray<float> > >, ConstantEdgeExtension>, BilinearInterpolation>
-      interp_overlap_img = interpolate(overlap_img, BilinearInterpolation(), ConstantEdgeExtension());
-
-    ImageView<PixelMask<PixelGray<float> > > overlapReflectance;
-    bool savePhaseAngle = globalParams.updateTilePhaseCoeffs; // Need the phase angle only when we update the phase coeffs
-    ImageView<PixelMask<PixelGray<float> > > phaseAngle;
-    if (useReflectance){
-      computeReflectanceAux(dem_xyz, surface_normal,  
-                            overlap_img_params[i],
-                            globalParams,  
-                            overlapReflectance, // output
-                            savePhaseAngle,
-                            phaseAngle          // output
-                            );
-    }else{
-      // The reflectance is set to 1.
-      overlapReflectance.set_size(albedoTile.cols(), albedoTile.rows());
-      for (int row = 0; row < (int)albedoTile.rows(); row++){
-        for (int col = 0; col < (int)albedoTile.cols(); col++){
-          overlapReflectance(col, row) = 1.0;
-          overlapReflectance(col, row).validate();
-        }
-      }
-    }
-
-    for (int k = 0; k < albedoTile.rows(); ++k) {
-      for (int l = 0; l < albedoTile.cols(); ++l) {
-
-        Vector2 albedoTile_pix(l,k);
-
-        Vector2 lon_lat = albedoTile_geo.pixel_to_lonlat(albedoTile_pix);
-              
-        if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum && weightsSum(l, k) == 0) continue;
-        
-        double weight = 1.0;
-        if (useWeights){
-          // We need the pixel coordinates in the ENTIRE image, as opposed to its coordinates
-          // in the subimage, for the purpose of computing the weight.
-          Vector2 overlap_pix_orig = overlap_geo_orig.lonlat_to_pixel(lon_lat);
-          weight = ComputeLineWeightsHV(overlap_pix_orig, overlap_img_params[i]);
-        }
-        if (weight == 0.0) continue;
-
-        // Normalize to ensure that all weights for all images at given pixel add up to 1
-        if (globalParams.useNormalizedCostFun && !globalParams.computeWeightsSum) weight /= weightsSum(l, k);
-
-        //check for overlap between the output image and the input DEM image
-        Vector2 overlap_pix = overlap_geo.lonlat_to_pixel(lon_lat);
-        double overlap_x    = overlap_pix[0];
-        double overlap_y    = overlap_pix[1];
-
-        //image dependent part of the code  - START
-        
-        // Check for valid overlap_img pixels
-        int j0 = (int)floor(overlap_x), j1 = (int)ceil(overlap_x);
-        int i0 = (int)floor(overlap_y), i1 = (int)ceil(overlap_y);
-        // Note: Below must do overlap_x <= overlap_img.cols()-1
-        // rather than overlap_x < overlap_img.cols().
-        bool isValidOverlap = ( (overlap_x >= 0) && (overlap_x <= overlap_img.cols()-1 )        &&
-                                (overlap_y >= 0) && (overlap_y <= overlap_img.rows()-1 )        &&
-                                is_valid(overlap_img(j0, i0))  && is_valid(overlap_img(j0, i1)) &&
-                                is_valid(overlap_img(j1, i0))  && is_valid(overlap_img(j1, i1)) 
-                                );
-        if (!isValidOverlap) continue;
-        
-        // We have a valid pixel.
-        albedoTile(l,k).validate();
-        if (computeErrors) errorTile(l,k).validate();
-        
-        double R = (double)overlapReflectance(l, k);
-        if (R == 0.0) continue; // no reflectance data
-
-        double exposureRefl = overlap_img_params[i].exposureTime*R;
-        
-        // Check if the image is above the shadow threshold
-        double t = getShadowThresh(globalParams, exposureRefl);
-        bool isBlack = !((double)overlap_img(j0, i0) >= t &&
-                         (double)overlap_img(j0, i1) >= t &&
-                         (double)overlap_img(j1, i0) >= t &&
-                         (double)overlap_img(j1, i1) >= t
-                         );
-        if (isBlack) continue; // No image data
-
-        // See an explanation of the logic below in reconstruct.cc.
-        if (globalParams.forceMosaic){
-          overlap_img_params[i].exposureTime = globalParams.TRConst;
-          R = 1.0;
-          exposureRefl = overlap_img_params[i].exposureTime*R;
-        }
-        
-        PixelMask<PixelGray<float> > overlap_img_pixel = interp_overlap_img(overlap_x, overlap_y);
-        
-        if (globalParams.computeWeightsSum){
-
-          if (globalParams.useNormalizedCostFun) norm(l,k) = norm(l,k) + weight;
-
-        }else if (globalParams.initAlbedo){
-          
-          //New averaging
-          albedoTile(l, k) = (double)albedoTile(l, k) + ((double)overlap_img_pixel)*exposureRefl*weight;
-          norm(l,k)        = norm(l,k) + exposureRefl*exposureRefl*weight;
-          // Old averaging
-          //albedoTile(l, k) = (float)albedoTile(l, k) + ((float)overlap_img_pixel*weight)/exposureRefl;
-          //norm(l,k) = norm(l,k) + weight;
-          
-        }else if (willReadInputTile && is_valid(inputAlbedoTile(l, k))){
-
-          double lx = lon_lat(0), ly = lon_lat(1);
-          bool isInTile = (min_tile_x <= lx && lx < max_tile_x && min_tile_y <= ly && ly < max_tile_y);
-
-          // Update albedo or update phase coefficients or compute errors
-          double diff = (double)overlap_img_pixel - ((double)inputAlbedoTile(l, k))*exposureRefl;
-          if (globalParams.updateAlbedo){
-            // Update the albedo
-            albedoTile(l, k) = (double)albedoTile(l, k) + diff*exposureRefl*weight;
-            norm(l,k)        = norm(l,k) + exposureRefl*exposureRefl*weight;
-          }else if (globalParams.updateTilePhaseCoeffs && isInTile){
-            // Update the phase coefficients components for the current tile
-            double alpha   = phaseAngle(l, k);
-            double e       = exp(-globalParams.phaseCoeffA1*alpha);
-            // The derivative of A*T*R in respect to the phase coeffs,
-            // where R = (exp(-A1*alpha) + A2)*lambertian
-            double derivA2 = ((double)inputAlbedoTile(l, k))*exposureRefl/(e + globalParams.phaseCoeffA2);
-            double derivA1 = derivA2*(-alpha*e);
-            PCD.phaseCoeffA1_num += diff*derivA1*weight;
-            PCD.phaseCoeffA1_den += derivA1*derivA1*weight;
-            PCD.phaseCoeffA2_num += diff*derivA2*weight;
-            PCD.phaseCoeffA2_den += derivA2*derivA2*weight;
-          }else if (computeErrors){
-            // Compute the errors
-            errorTile(l, k) = (double)errorTile(l, k) + (diff/exposureRefl)*(diff/exposureRefl)*weight;
-            norm(l,k)       = norm(l,k) + weight;
-          }
-                      
-          if (isInTile){
-            // Accumulate the cost function only for pixels in the tile proper rather than
-            // in the padded region
-            costFunVal += diff*diff*weight; // Weighted sum of squares
-          }
-        }
-
-      }
-                  
-      //image dependent part of the code  - END
-    }
-
-    //std::cout << "sun and spacecraft: " << overlap_img_params[i].inputFilename  << ' '
-    //          << overlap_img_params[i].sunPosition  << ' ' << overlap_img_params[i].spacecraftPosition
-    //          << std::endl;
-    //system("echo albedo top is $(top -u $(whoami) -b -n 1|grep lt-reconstruct)");
-  }
-
-  // Nothing else to do if all we care about is updating the phase coefficients
-  if (globalParams.updateTilePhaseCoeffs) return costFunVal;
-
-  if (globalParams.useNormalizedCostFun && globalParams.computeWeightsSum){
-    std::cout << "Writing: " << weightsSumFile << std::endl;
-    write_georeferenced_image(weightsSumFile,
-                              norm,
-                              weightsSum_geo, TerminalProgressCallback("{Core}","Processing:"));
-    
-    return 0;
-  }
-  
-  if (computeErrors){
-    // If we computed the errors, we did not update the albedo, as such, the albedo
-    // must be set to the input albedo.
-    albedoTile = copy(inputAlbedoTile);
-  }
-    
-  //compute the mean albedo value
-  int numValid = 0;
-  for (int k = 0 ; k < albedoTile.rows(); ++k) {
-    for (int l = 0; l < albedoTile.cols(); ++l) {
-
-      // When updating the albedo, if the input albedo is invalid, then the updated
-      // albedo is also invalid.
-      if (willReadInputTile && globalParams.updateAlbedo && !is_valid(inputAlbedoTile(l, k))){
-        albedoTile(l,k).invalidate();
-      }
-      if (willReadInputTile && computeErrors && !is_valid(inputAlbedoTile(l, k))){
-        errorTile(l,k).invalidate();
-      }
-      
-      if ( (float)albedoTile(l,k) == 0 ) albedoTile(l,k).invalidate(); // temporary!!!
-        
-      if ( (is_valid(albedoTile(l,k))) && (norm(l, k) != 0) ) {
-          
-        if (globalParams.initAlbedo){
-          // Init tile
-          albedoTile(l, k) = albedoTile(l, k)/norm(l,k);
-        }else if (willReadInputTile && globalParams.updateAlbedo){
-          // Update the tile
-          albedoTile(l, k) = inputAlbedoTile(l, k) + albedoTile(l, k)/norm(l,k);
-        }else{
-          // Compute the errors
-          errorTile(l, k) = errorTile(l, k)/norm(l,k);
-        }
-        numValid++;
-      }
-        
-    }
-  }
-
-  printf("numValid = %d, total = %d\n", numValid, albedoTile.rows()*albedoTile.cols());
-  
-  if (isLastIter){
-
-    // The true albedo is in fact A0*( exp(-A1*alpha) + A2 ), for alpha = 0.
-    // The quantity A0 is what we computed so far, so we must multiply by the remaining factor.
-    if (useReflectance){
-      for (int k = 0; k < albedoTile.rows(); ++k) {
-        for (int l = 0; l < albedoTile.cols(); ++l) {
-          if ( is_valid(albedoTile(l, k)) ) albedoTile(l, k)
-            = (double)albedoTile(l, k)*(1 + globalParams.phaseCoeffA2);
-        }
-      }
-    }
-    
-    // Remove the temporary work padding if this is the last albedo update iteration.
-    cropImageAndGeoRefInPlace(Vector2(min_tile_x, max_tile_y),
-                              Vector2(max_tile_x, min_tile_y),
-                              albedoTile, albedoTile_geo // inputs-outputs
-                              );
-
-  }
-    
-  // Write the albedo tile. Note that we write the albedo tile even if we are in the mode in which
-  // we compute the error. That because, if the error computation is the last iteration, this is the time
-  // at which to crop the albedo tile itself (we could not have cropped it at a previous step,
-  // because we cannot compute the error with a cropped albedo tile).
-  // After cropping the image, if it is made up of only empty pixels, then don't save it.
-  numValid = 0;
-  for (int k = 0; k < albedoTile.rows(); ++k) {
-    for (int l = 0; l < albedoTile.cols(); ++l) {
-      if ( (double)albedoTile(l, k) > 0 ) numValid++;
-    }
-  }
-  if (numValid > 0){
-    std::cout << "Writing: " << albedoTileFile << std::endl;
-    write_georeferenced_image(albedoTileFile,
-                              channel_cast<uint8>(clamp(albedoTile, 0.0, 255.0)),
-                              albedoTile_geo, TerminalProgressCallback("{Core}","Processing:"));
-  }
-  
-  if (numValid > 0 && computeErrors){
-    
-    if (isLastIter){
-      // Strip the padding before saving the error to disk
-      cropImageAndGeoRefInPlace(Vector2(min_tile_x, max_tile_y),
-                                Vector2(max_tile_x, min_tile_y),
-                                errorTile, errorTile_geo // inputs-outputs
-                                );
-    }
-    
-    std::cout << "Writing: " << errorTileFile << std::endl;
-    // The scaling below is pretty arbitrary
-    write_georeferenced_image(errorTileFile,
-                              channel_cast<uint8>(clamp(errorTile/10.0, 0.0, 255.0)),
-                              errorTile_geo, TerminalProgressCallback("{Core}","Processing:"));
-  }
-  
-  // Return the cost function value
-  return costFunVal;
-}
-
-void photometry::AppendCostFunToFile(double costFunVal, std::string fileName)
-{
-  // Append the current cost function to the file.
-  FILE *fp;
-  fp = fopen((char*)fileName.c_str(), "a");
-  std::cout << "Writing " << fileName << std::endl;
-  fprintf(fp, "%0.16g\n", costFunVal);
-  fclose(fp);
 }
 
 

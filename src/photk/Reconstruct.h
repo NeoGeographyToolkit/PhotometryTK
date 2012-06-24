@@ -1,9 +1,19 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
-
 
 /// \file Reconstruct.h
 
@@ -38,7 +48,7 @@ struct ImageRecord {
 
 namespace photometry {
 
-  typedef struct GlobalParams{
+  struct GlobalParams{
 
     std::string drgDir;
     std::string demDir;
@@ -51,16 +61,12 @@ namespace photometry {
     vw::Vector4 simulationBox; // lonMin, lonMax, latMin, latMax (If not present the entire albedo will be simulated)
     
     int reflectanceType;
-    int saveReflectance;
-    int slopeType;
     int initDEM;
     int initExposure;
     int initAlbedo;
-    int shadowRemovalType;
+    int shadowType;
 
     float shadowThresh;
-
-    std::string exposureInfoFilename;
 
     //float exposureInitRefValue;//this will be removed
     //int exposureInitRefIndex;//this will be removed
@@ -68,13 +74,12 @@ namespace photometry {
     int updateAlbedo, updateExposure, updateHeight;
 
     // Two parameters used in the formula for the reflectance
-    float phaseCoeffA1, phaseCoeffA2;
-    // Update the components of the coefficients phaseCoeffA1 and
-    // phaseCoeffA2 for each tile.
+    float phaseCoeffC1, phaseCoeffC2;
+    // Update the components of the coefficients phaseCoeffC1 and
+    // phaseCoeffC2 for each tile.
     int updateTilePhaseCoeffs;
     // Update the phase coefficients by combining the results from all tiles
     int updatePhaseCoeffs;
-    std::string phaseCoeffsFileName;
     
     int useWeights;
     int saveWeights, computeWeightsSum, useNormalizedCostFun;

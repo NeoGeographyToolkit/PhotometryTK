@@ -1,4 +1,4 @@
-// __BEGIN_LICENSE__
+//__BEGIN_LICENSE__
 //  Copyright (c) 2009-2012, United States Government as represented by the
 //  Administrator of the National Aeronautics and Space Administration. All
 //  rights reserved.
@@ -16,77 +16,16 @@
 // __END_LICENSE__
 
 // To do:
-// Good testcase for cutting: AS17-M-1982
-// Add documentation about generated kmls
-// Utility for  extracting sun and spacecraft position from a cube. Maybe Ara has it?
-// Put info on the uint testcases in the documentation.
-// Put the Apache license everywhere!
-// Make the unit tests work
-// Wipe all the code having to do with images.
-// How to create kml tiles?
-// Massive cleanup needed in reconstruct.cc. Remove all flow without tiles.
-// Integrate all pieces calling actOnTile. Remove the loop over images.
-// Test that in mosaic only mode the code can run without the DEM directory
-// Fix a bug at 10 mpp. Zoom in a lot at 84E.
-// When updating the exposure, some processes write exposure while
-// some other processes at the same time read it. This can cause problems.
-// Use normalized weights in shape-from-shading as well.
-// Wipe the network machines code. Create a copy of reconstruct.sh for use
-// on the supercomputer.
-// Add tool to StereoPipeline to extract the sun and spacecraft
-// position from cube. Then wipe reconstruct_aux.cc and everything
-// having to do with ISIS from reconstruct.cc and reconstruct.sh.
-// Add a blurb in the documentation about how to get images and
-// sun/spacecraft position from isis cubes.
-// Fix the bug in orthoproject with images going beyond 180 degrees. They show up
-// with a huge black band.
+// Copy the DIM data to lou
 // Simplify the script.
+// Use normalized weights in shape-from-shading as well.
 // More work in shape from shading: Strip padding at the last iteration.
-// Bug: There is a shift in the AS17 mosaic.
-// Validate the list of machines, the number of CPUs
-// Validate the  sim box
-// Check if  reconstruct, orthoproject, image2qtree, gdal, exist.
-// To do: How to find the number of processors on a Mac
-// Validate in advance if we have sun/spacecraft position for each image.
-// Should images not having sun/spacecraft info be ignored?
-// To do: Must regenerate the index files all the time, as they are too fragile
-// Bad image: DIM_input_10mpp/AS17-M-0473.tif
-// To do: Fix the logic for extracting sun/spacecraft position from cubes
-// in both the .cc file and in the shell script.
-// To do: Enable the flow of doing all the flow w/o the shell script.
-// To do: Remove the file reconstruct_aux.cc which mostly duplicates orthoproject.cc.
-// To do: Test this big image: AS17-M-0305
-// To do: Test this as well. DIM_input_sub64_isis/AS17-M-0281.tif, has a lot of black.
-// Note: We assume a certain convention about the isis cube file and corresponding
-// isis adjust file.
-// Note: The isis adjust file may not exist.
-// To do: Move readDEMTilesIntersectingBox to Image/ and remove the DEM-specific language.
-// To do: Note that the image extracted from cubes is uint16, not uint8.
-// To do: Also note that those images are a bit darker than regular
-// images we already have, even after converting them to uint8.
-// To: The function ComputeGeoBoundary looks wrong. Use instead
-// georef.bounding_box(img), which I think is accurate. Compare
-// with gdalinfo.
-// To do: Check the effect of pixel padding on final albedo. 
-// To do: Implement the logic where one checks if a pixel is in the shadow,
-// in one (inline) function, and call it wherever it is needed.
-// To do: Copy the images from supercomp.
-// To do: Fix the memory leaks where the weighs are read.
-// Read the data from cubes, and remove all logic having to do with
-// filters from reconstruct.sh.
-// To do: Unit tests
-// To do: Reorg the code which computes the reflectance and its
-// derivative in ShapeFromShading.cc to only compute the
-// derivative. Move all that code to Reflectance.cc. Convert all to
-// double.
+// Must regenerate the index files all the time, as they are too fragile
+// The isis adjust file may not exist.
+// Copy the images from supercomp.
 // Rename dem_out.tif to dem_mean.tif, and modelParams.outputFile to modelParams.albedoFile,
 // inputFile to drgFile.
-// Remove a lot of duplicate code related to overlaps
-// There is only one image, rm the vector of images
-// No need to initialize the albedo tiles on disk, create
-//   them on the fly.
 // Merge the imageRecord and modelParams classes
-// See if to change the order of values in the corners vector
 #ifdef _MSC_VER
 #pragma warning(disable:4244)
 #pragma warning(disable:4267)
@@ -99,6 +38,8 @@
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <time.h>
 using namespace std;
 
 #include <boost/program_options.hpp>
@@ -119,27 +60,27 @@ using namespace vw::math;
 using namespace vw::cartography;
 using namespace photometry;
 
-
 int main( int argc, char *argv[] ) {
 
   for (int s = 0; s < argc; s++) std::cout << argv[s] << " ";
   std::cout << std::endl;
 
+  time_t Start_t = time(NULL);
+ 
   std::vector<std::string> inputDRGFiles;
-  std::string resDir, settingsFile, DRGInBoxList, albedoTilesList;
+  std::string resDir, settingsFile, imagesList, albedoTilesList;
   std::string currImgOrTile;
   
   po::options_description general_options("Options");
   general_options.add_options()
     ("settings-file,s", po::value<std::string>(&settingsFile), "Settings file")
     ("results-directory,r", po::value<std::string>(&resDir),   "Results directory")
-    ("images-list,f", po::value<std::string>(&DRGInBoxList),   "The list of images")
+    ("images-list,f", po::value<std::string>(&imagesList),     "The list of images")
     ("tiles-list,t", po::value<std::string>(&albedoTilesList), "The list of albedo tiles")
     ("image-file,i", po::value<std::string>(&currImgOrTile),   "Current image or tile")
     ("initial-setup",            "Initial setup")
     ("save-weights",             "Save the weights")
     ("compute-weights-sum",      "Compute the sum of weights at each pixel")
-    ("compute-shadow",           "Compute the shadow")
     ("init-dem",                 "Initialize the DEM")
     ("init-exposure",            "Initialize the exposure times")
     ("init-albedo",              "Initialize the albedo")
@@ -202,6 +143,9 @@ int main( int argc, char *argv[] ) {
   bool computeErrors = vm.count("compute-errors");
   bool isLastIter    = vm.count("is-last-iter");
 
+  // Not using reflectance is the same as creating a mosaic instead of albedo
+  bool useReflectance = (globalParams.reflectanceType != NO_REFL); 
+
   // Validation
   if ((int)globalParams.initialSetup
       + (int)globalParams.saveWeights
@@ -222,12 +166,6 @@ int main( int argc, char *argv[] ) {
   // Double check to make sure all folders exist  
   if ( !fs::exists(resDir) )
     fs::create_directories(resDir);
-  if ( !fs::exists(resDir+"/info") )
-    fs::create_directories(resDir+"/info");
-  if ( !fs::exists(resDir+"/reflectance") )
-    fs::create_directories(resDir+"/reflectance");
-  if ( !fs::exists(resDir+"/shadow") )
-    fs::create_directories(resDir+"/shadow");
   if ( !fs::exists(resDir+"/exposure") )
     fs::create_directories(resDir+"/exposure");
   if ( !fs::exists(resDir+"/weight") )
@@ -240,56 +178,57 @@ int main( int argc, char *argv[] ) {
   std::string sfsDir        = resDir + "/DEM_sfs";
   std::string phaseDir      = resDir + "/phase";
   if ( !fs::exists(albedoDir    ) ) fs::create_directories(albedoDir    );
-  if ( !fs::exists(meanDEMDir   ) ) fs::create_directories(meanDEMDir   );
+  if ( useReflectance &&
+       !fs::exists(meanDEMDir   ) ) fs::create_directories(meanDEMDir   );
   if ( !fs::exists(costFunDir   ) ) fs::create_directories(costFunDir   );
-  if ( !fs::exists(errorDir     ) ) fs::create_directories(errorDir     );
-  if ( !fs::exists(weightsSumDir) ) fs::create_directories(weightsSumDir);
-  if ( !fs::exists(sfsDir       ) ) fs::create_directories(sfsDir       );
+  if ( computeErrors &&
+       !fs::exists(errorDir     ) ) fs::create_directories(errorDir     );
+  if ( globalParams.useNormalizedCostFun &&
+       !fs::exists(weightsSumDir) ) fs::create_directories(weightsSumDir);
+  if ( updateHeight &&
+       !fs::exists(sfsDir ) )       fs::create_directories(sfsDir       );
   if ( !fs::exists(phaseDir     ) ) fs::create_directories(phaseDir     );
 
-  // This will overwrite the values of globalParams.phaseCoeffA1, globalParams.phaseCoeffA2
+  // This will overwrite the values of globalParams.phaseCoeffC1, globalParams.phaseCoeffC2
   // if that information is available on disk.
   ReadPhaseCoeffsFromFile(phaseDir, globalParams);
-  if (globalParams.initialSetup == 1) AppendPhaseCoeffsToFile(globalParams);
+  if (globalParams.initialSetup == 1) AppendPhaseCoeffsToFile(phaseDir, globalParams);
 
   // The names of the files listing all DRGs and DEMs and the coordinates
   // of their corners. 
   std::string allDRGIndex  = globalParams.drgDir + "/index.txt";
   std::string allDEMIndex  = globalParams.demDir + "/index.txt";
-  std::string DEMTilesList = resDir + "/DEMTilesList.txt";
+  std::string DEMTilesList = resDir              + "/DEMTilesList.txt";
 
-  // Check if the input image exists
-  std::ifstream iFile(currImgOrTile.c_str());
-  if (!iFile) return 0;
-
-  // Not using reflectance is the same as creating a mosaic instead of albedo
-  bool useReflectance = (globalParams.reflectanceType != NO_REFL); 
-
+  // A tile which will hold the georef info for all images and tiles
+  std::string sampleTileFile = resDir + "/sampleTile.tif";
+  
   if (globalParams.initialSetup == 1) {
 
-    // This block of code creates the list of images (DRGInBoxList). As such, it must be above
+    // This block of code creates the list of images (imagesList). As such, it must be above
     // any code which reads the list of images.
-    // Create the DRGInBoxList used in subsequent iterations.
+    // Create the imagesList used in subsequent iterations.
     // Create the list of all DEM if not there yet.
     listDRGinBoxAndAllDEM(useReflectance,
                           allDRGIndex, allDEMIndex,
-                          globalParams.simulationBox, globalParams.drgDir, globalParams.demDir, DRGInBoxList
+                          globalParams.simulationBox, globalParams.drgDir, globalParams.demDir, imagesList
                           );
-    
+
     vw_out( VerboseDebugMessage, "photometry" ) << "Initializing the albedo tiles ... ";
     std::vector<ImageRecord> drgRecords;
-    if (!readImagesFile(drgRecords, DRGInBoxList)) exit(1);
+    if (!readImagesFile(drgRecords, imagesList)) exit(1);
     std::string imageFile = currImgOrTile; // an image whose georef we will use
-    createAlbedoTilesOverlappingWithDRG(globalParams.tileSize, globalParams.pixelPadding,
-                                        imageFile, globalParams.simulationBox,
-                                        drgRecords,
-                                        DEMTilesList,    meanDEMDir,
-                                        albedoTilesList, albedoDir
-                                        );
+    listAlbedoTilesOverlappingWithDRG(globalParams.tileSize, globalParams.pixelPadding,
+                                      imageFile, globalParams.simulationBox,
+                                      drgRecords,
+                                      DEMTilesList,    meanDEMDir,
+                                      albedoTilesList, albedoDir,
+                                      sampleTileFile
+                                      );
   }
 
   std::vector<ImageRecord> drgRecords;
-  if (!readImagesFile(drgRecords, DRGInBoxList)) exit(1);
+  if (!readImagesFile(drgRecords, imagesList)) exit(1);
 
   std::map<std::string, Vector3> sunPositions;
   std::map<std::string, Vector3> spacecraftPositions;
@@ -306,58 +245,52 @@ int main( int argc, char *argv[] ) {
 
   //this will contain all the DRG files
   std::vector<std::string> DRGFiles;
-  {
-    int i = 0;
-    for (unsigned int j = 0; j < drgRecords.size(); ++j) {
-      if (!drgRecords[j].useImage) continue;
+  for (unsigned int j = 0; j < drgRecords.size(); ++j) {
       
-      DRGFiles.push_back(drgRecords[j].path);
-      modelParamsArray.push_back(ModelParams());
+    DRGFiles.push_back(drgRecords[j].path);
+    modelParamsArray.push_back(ModelParams());
       
-      std::string temp = suffix_from_filename(DRGFiles[i]);
-      modelParamsArray[i].exposureTime     = 1.0;
-      modelParamsArray[i].hCenterLineDEM   = NULL;
-      modelParamsArray[i].hMaxDistArrayDEM = NULL;
-      modelParamsArray[i].inputFilename    = DRGFiles[i];//these filenames have full path
+    std::string temp = suffix_from_filename(DRGFiles[j]);
+    modelParamsArray[j].exposureTime     = 1.0;
+    modelParamsArray[j].hCenterLineDEM   = NULL;
+    modelParamsArray[j].hMaxDistArrayDEM = NULL;
+    modelParamsArray[j].inputFilename    = DRGFiles[j];//these filenames have full path
       
-      std::string prefix = getFirstElevenCharsFromFileName(DRGFiles[i]);
+    std::string prefix = getFirstElevenCharsFromFileName(DRGFiles[j]);
       
-      if (useReflectance){
-        if ( sunPositions.find(prefix) == sunPositions.end()){
-          std::cerr << "Could not find the sun position for the DRG file: " << DRGFiles[i] << std::endl;
-          exit(1);
-        }
-        modelParamsArray[i].sunPosition = 1000*sunPositions[prefix];
-        
-        if (spacecraftPositions.find(prefix) == spacecraftPositions.end()){
-          std::cerr << "Could not find the spacecraft position for the DRG file: " << DRGFiles[i] << std::endl;
-          exit(1);
-        }
-        modelParamsArray[i].spacecraftPosition = 1000*spacecraftPositions[prefix];
+    if (useReflectance){
+      if ( sunPositions.find(prefix) == sunPositions.end()){
+        std::cerr << "Could not find the sun position for the DRG file: " << DRGFiles[j] << std::endl;
+        exit(1);
       }
-      
-      modelParamsArray[i].infoFilename        = resDir + "/info/" + prefix_less3_from_filename(temp)+"info.txt";
-      modelParamsArray[i].reliefFilename      = resDir + "/reflectance" + prefix_from_filename(temp) + "_reflectance.tif";
-      modelParamsArray[i].shadowFilename      = resDir + "/shadow/" + prefix_from_filename(temp) + "_shadow.tif";
-      modelParamsArray[i].errorFilename       = resDir + "/error" + prefix_from_filename(temp) + "_err.tif";
-      modelParamsArray[i].outputFilename      = resDir + "/albedo" + prefix_from_filename(temp) + "_albedo.tif";
-      modelParamsArray[i].sfsDEMFilename      = resDir + "/DEM_sfs" + prefix_less3_from_filename(temp) + "DEM_sfs.tif";
-      modelParamsArray[i].errorHeightFilename = resDir + "/error" + prefix_from_filename(temp) + "_height_err.tif";
-      modelParamsArray[i].weightFilename      = resDir + "/weight" + prefix_from_filename(temp) + "_weight.txt";
-      modelParamsArray[i].exposureFilename    = resDir + "/exposure" + prefix_from_filename(temp) + "_exposure.txt";
-      
-      const ImageRecord& rec = drgRecords[j];
-      modelParamsArray[i].corners = Vector4(rec.west, rec.east, rec.south, rec.north);
-      
-      modelParamsArray[i].hCenterLineDEM   = NULL;
-      modelParamsArray[i].hMaxDistArrayDEM = NULL;
-      modelParamsArray[i].vCenterLineDEM   = NULL;
-      modelParamsArray[i].vMaxDistArrayDEM = NULL;
-      
-      vw_out( VerboseDebugMessage, "photometry" ) << modelParamsArray[i] << "\n";
-      
-      i++;
+      modelParamsArray[j].sunPosition = 1000*sunPositions[prefix];
+        
+      if (spacecraftPositions.find(prefix) == spacecraftPositions.end()){
+        std::cerr << "Could not find the spacecraft position for the DRG file: " << DRGFiles[j] << std::endl;
+        exit(1);
+      }
+      // Go from kilometers to meters
+      modelParamsArray[j].spacecraftPosition = 1000*spacecraftPositions[prefix];
     }
+
+     modelParamsArray[j].infoFilename        = resDir + "/info/"       + prefix_less3_from_filename(temp) + "info.txt";
+     modelParamsArray[j].reliefFilename      = resDir + "/reflectance" + prefix_from_filename(temp)       + "_reflectance.tif";
+     modelParamsArray[j].errorFilename       = resDir + "/error"       + prefix_from_filename(temp)       + "_err.tif";
+     modelParamsArray[j].outputFilename      = resDir + "/albedo"      + prefix_from_filename(temp)       + "_albedo.tif";
+     modelParamsArray[j].sfsDEMFilename      = resDir + "/DEM_sfs"     + prefix_less3_from_filename(temp) + "DEM_sfs.tif";
+     modelParamsArray[j].errorHeightFilename = resDir + "/error"       + prefix_from_filename(temp)       + "_height_err.tif";
+     modelParamsArray[j].weightFilename      = resDir + "/weight"      + prefix_from_filename(temp)       + "_weight.txt";
+     modelParamsArray[j].exposureFilename    = resDir + "/exposure"    + prefix_from_filename(temp)       + "_exposure.txt";
+      
+    const ImageRecord& rec = drgRecords[j];
+    modelParamsArray[j].corners = Vector4(rec.west, rec.east, rec.south, rec.north);
+      
+    modelParamsArray[j].hCenterLineDEM   = NULL;
+    modelParamsArray[j].hMaxDistArrayDEM = NULL;
+    modelParamsArray[j].vCenterLineDEM   = NULL;
+    modelParamsArray[j].vMaxDistArrayDEM = NULL;
+      
+    vw_out( VerboseDebugMessage, "photometry" ) << modelParamsArray[j] << "\n";
   }
   
   if (globalParams.initialSetup == 1){
@@ -366,11 +299,33 @@ int main( int argc, char *argv[] ) {
   }
     
   vw_out() << "Number of Files = " << DRGFiles.size() << "\n";
-  
-  std::vector<int>  overlapIndicesArray = makeOverlapList(modelParamsArray, currImgOrTile);
-  printOverlapList(overlapIndicesArray);
 
-  std::vector<int> inputIndices = GetInputIndices(currImgOrTile, DRGFiles);
+  // Get the corners for currImgOrTile from the list
+  // of images or tiles
+  std::vector<int> inputIndices = GetInputIndices(currImgOrTile, drgRecords);
+  ImageRecord currImgOrTileCorners;
+  if (inputIndices.size() != 0){
+    // currImgOrTile is an image
+    currImgOrTileCorners = drgRecords[inputIndices[0]];
+  }else{
+    // currImgOrTile is a tile
+    std::vector<ImageRecord> albedoTiles;
+    if (!readImagesFile(albedoTiles, albedoTilesList)) exit(1);
+    std::vector<int> inputIndicesLocal = GetInputIndices(currImgOrTile, albedoTiles);
+    if (inputIndicesLocal.size() >= 1){
+      currImgOrTileCorners = albedoTiles[inputIndicesLocal[0]];
+    }else if(drgRecords.size() >= 1){
+      // In this case we don't really use currImgOrTileCorners but do this for  consistency
+      currImgOrTileCorners = drgRecords[0];
+    }else{
+      cerr << "ERROR: No images." << endl;
+      exit(1);
+    }
+  }
+
+  // The images overlapping with currImgOrTile
+  std::vector<int>  overlapIndicesArray = makeOverlapList(drgRecords, currImgOrTileCorners);
+  printOverlapList(overlapIndicesArray);
   
   // set up weights only for images that we want to process or that
   // overlap one of the files we want to process
@@ -408,9 +363,7 @@ int main( int argc, char *argv[] ) {
       if (j == inputIndices[0]){
         // Compute and save the weights only for the current image,
         // not for all images overlapping with it.
-
         ComputeImageCenterLines(modelParamsArray[j]);
-
         if (globalParams.saveWeights == 1) SaveWeightsParamsToFile(modelParamsArray[j]);
         
       }
@@ -422,12 +375,13 @@ int main( int argc, char *argv[] ) {
   
   if ( globalParams.initDEM == 1 && useReflectance ){
     // Initialize the DEM tiles
-    std::string albedoTileFile = currImgOrTile;
-    std::string DEMTileFile    = meanDEMDir + suffix_from_filename(albedoTileFile);
+    std::string currTile        = currImgOrTile;
+    ImageRecord currTileCorners = currImgOrTileCorners;
+    std::string DEMTileFile     = meanDEMDir + suffix_from_filename(currTile);
     std::vector<ImageRecord> DEMImages;
     if (!readImagesFile(DEMImages, allDEMIndex)) exit(1);
-    std::vector<int> overlap = makeOverlapList(DEMImages, albedoTileFile);
-    InitMeanDEMTile(albedoTileFile, DEMTileFile, 
+    std::vector<int> overlap = makeOverlapList(DEMImages, currTileCorners);
+    InitMeanDEMTile(sampleTileFile, currTileCorners, DEMTileFile, 
                     DEMImages, overlap, globalParams
                     );
   }
@@ -445,6 +399,7 @@ int main( int argc, char *argv[] ) {
     }
     
     std::string currDRG = currImgOrTile;
+    ImageRecord currImgCorners = currImgOrTileCorners;
     std::vector<ImageRecord> DEMTiles, albedoTiles, weightsSumTiles;
     std::vector<int> overlap;
     if (!readImagesFile(DEMTiles,    DEMTilesList))    exit(1);
@@ -455,7 +410,7 @@ int main( int argc, char *argv[] ) {
       // substituting the right directory name.
       weightsSumTiles[s].path = weightsSumDir + suffix_from_filename(weightsSumTiles[s].path);
     }
-    overlap = makeOverlapList(DEMTiles, currDRG);
+    overlap = makeOverlapList(DEMTiles, currImgCorners);
     float val = actOnImage(DEMTiles, albedoTiles, weightsSumTiles,
                            overlap,
                            modelParamsArray[inputIndices[0]],
@@ -483,12 +438,12 @@ int main( int argc, char *argv[] ) {
       std::string phaseTileFile = phaseDir + prefix_from_filename(suffix_from_filename(albedoTiles[s].path)) + ".txt";
       phaseCoeffsData PCD;
       PCD.readFromFile(phaseTileFile);
-      A1_num += PCD.phaseCoeffA1_num; A1_den += PCD.phaseCoeffA1_den;
-      A2_num += PCD.phaseCoeffA2_num; A2_den += PCD.phaseCoeffA2_den;
+      A1_num += PCD.phaseCoeffC1_num; A1_den += PCD.phaseCoeffC1_den;
+      A2_num += PCD.phaseCoeffC2_num; A2_den += PCD.phaseCoeffC2_den;
     }
-    if (A1_den != 0.0) globalParams.phaseCoeffA1 += A1_num/A1_den;
-    if (A2_den != 0.0) globalParams.phaseCoeffA2 += A2_num/A2_den;
-    AppendPhaseCoeffsToFile(globalParams);
+    if (A1_den != 0.0) globalParams.phaseCoeffC1 += A1_num/A1_den;
+    if (A2_den != 0.0) globalParams.phaseCoeffC2 += A2_num/A2_den;
+    AppendPhaseCoeffsToFile(phaseDir, globalParams);
   }
   
   if (globalParams.initAlbedo || globalParams.updateAlbedo || computeErrors ||
@@ -508,11 +463,12 @@ int main( int argc, char *argv[] ) {
       overlapParamsArray[j] = modelParamsArray[overlapIndicesArray[j]];
     }
     
-    std::string albedoTileFile = currImgOrTile;
-    std::string DEMTileFile    = meanDEMDir    + suffix_from_filename(albedoTileFile);
-    std::string errorTileFile  = errorDir      + suffix_from_filename(albedoTileFile);
-    std::string weightsSumFile = weightsSumDir + suffix_from_filename(albedoTileFile);
-    std::string phaseTileFile  = phaseDir      + prefix_from_filename(suffix_from_filename(albedoTileFile)) + ".txt";
+    ImageRecord albedoTileCorners = currImgOrTileCorners;
+    std::string albedoTileFile    = currImgOrTile;
+    std::string DEMTileFile       = meanDEMDir    + suffix_from_filename(albedoTileFile);
+    std::string errorTileFile     = errorDir      + suffix_from_filename(albedoTileFile);
+    std::string weightsSumFile    = weightsSumDir + suffix_from_filename(albedoTileFile);
+    std::string phaseTileFile     = phaseDir      + prefix_from_filename(suffix_from_filename(albedoTileFile)) + ".txt";
     phaseCoeffsData PCD;
     
     // If this is not the last albedo iteration, we must
@@ -520,14 +476,16 @@ int main( int argc, char *argv[] ) {
     // tiles. Otherwise, do the update only if the tile overlaps
     // with the sim box, and wipe that tile altogether if it does
     // not.
-    Vector4 tileCorners = getImageCorners(albedoTileFile);
-    if ( isLastIter && !boxesOverlap(tileCorners, globalParams.simulationBox)){
-      std::cout << "Skipping/removing tile: "
+    Vector4 cornersVec = Vector4(albedoTileCorners.west, albedoTileCorners.east,
+                                 albedoTileCorners.south, albedoTileCorners.north);
+    if ( isLastIter && !boxesOverlap(cornersVec, globalParams.simulationBox)){
+      std::cout << "Removing tile: "
                 << albedoTileFile << " as it does not overlap with the simulation box." << std::endl;
       try { boost::filesystem::remove(albedoTileFile); } catch(...){}
       return 0;
     }
     double costFunVal = actOnTile(isLastIter, computeErrors,
+                                  sampleTileFile, albedoTileCorners,
                                   DEMTileFile, albedoTileFile, errorTileFile, weightsSumFile,
                                   overlapParamsArray, globalParams, PCD);
     if (globalParams.updateTilePhaseCoeffs) PCD.writeToFile(phaseTileFile);
@@ -553,6 +511,13 @@ int main( int argc, char *argv[] ) {
                          overlapParamsArray, globalParams);
   }
 
+  time_t End_t = time(NULL);
+  double time_task = difftime(End_t, Start_t);
+  ostringstream cmd;
+  cmd << "echo \"\n\n Job " << currImgOrTile << " at $(date) on machine $(uname -n) took " << setw(3) << time_task << " seconds.\n\n\"" << endl;
+  //std::cout << cmd.str() << std::endl;
+  system(cmd.str().c_str());
+  
   return 0;
 }
 

@@ -1,7 +1,18 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
 
 
@@ -523,11 +534,11 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
       DEM_geo, TerminalProgressCallback("photometry","Processing:"));
 }
 
-// Old code, using images not tiles
+// Only old code below, using images, not tiles
 
 template <class ViewT, class ViewT1>
 void
-ComputeBlockGeometry(ImageViewBase<ViewT> const& dem, GeoReference const &demGeo,
+ComputeBlockGeometryOld(ImageViewBase<ViewT> const& dem, GeoReference const &demGeo,
     ImageViewBase<ViewT1> const& drg, GeoReference const &drgGeo,
     int kb, int lb, ModelParams modelParams, GlobalParams globalParams,
     vector<Vector3> &xyzArray, vector<Vector3> &xyzLEFTArray, vector<Vector3> &xyzTOPArray,
@@ -623,7 +634,7 @@ ComputeBlockGeometry(ImageViewBase<ViewT> const& dem, GeoReference const &demGeo
 
 template <class ViewT1, class ViewT2>
 void
-ComputeBlockJacobian(ImageViewBase<ViewT1> const& inputImage, GeoReference const &inputImageGeo,
+ComputeBlockJacobianOld(ImageViewBase<ViewT1> const& inputImage, GeoReference const &inputImageGeo,
     ImageViewBase<ViewT2> const& shadowImage, ImageViewBase<ViewT1> const& albedoImage,
     int kb, int lb, ModelParams inputImgParams, GlobalParams globalParams,
     vector<Vector3> const &xyzArray, vector<Vector3> const &xyzLEFTArray,
@@ -717,7 +728,7 @@ ComputeBlockJacobian(ImageViewBase<ViewT1> const& inputImage, GeoReference const
 
 template <class ViewT1, class ViewT2>
 void
-ComputeBlockJacobianOverlap(ImageViewBase<ViewT1> const& inputImage, GeoReference const &inputImageGeo,
+ComputeBlockJacobianOldOverlap(ImageViewBase<ViewT1> const& inputImage, GeoReference const &inputImageGeo,
     ImageViewBase<ViewT1> const& overlapImage, GeoReference const &overlapImageGeo,
     ImageViewBase<ViewT2> const& shadowImage, ImageViewBase<ViewT2> const& overlapShadowImage,
     ImageViewBase<ViewT1> const& albedoImage, int kb, int lb,
@@ -821,7 +832,7 @@ ComputeBlockJacobianOverlap(ImageViewBase<ViewT1> const& inputImage, GeoReferenc
 
 
 //call function for the update of the height map. main call function for shape from shading - from multiple images
-void photometry::UpdateHeightMap(ModelParams inputImgParams, std::vector<ModelParams> overlapImgParams, GlobalParams globalParams)
+void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<ModelParams> overlapImgParams, GlobalParams globalParams)
 {
 
   std::string inputImgFilename = inputImgParams.inputFilename;//the original DRG
@@ -970,13 +981,13 @@ void photometry::UpdateHeightMap(ModelParams inputImgParams, std::vector<ModelPa
       }
 
      //TO DO: reset xyzArray, xyzLEFT and xyzTOP
-      ComputeBlockGeometry(interp_dem_image, DEM_geo,
+      ComputeBlockGeometryOld(interp_dem_image, DEM_geo,
           inputImage, inputImg_geo, kb, lb,
           inputImgParams, globalParams,
           xyzArray, xyzLEFTArray,
           xyzTOPArray, normalArray);
 
-      ComputeBlockJacobian(inputImage, inputImg_geo, shadowImage, albedoImage,
+      ComputeBlockJacobianOld(inputImage, inputImg_geo, shadowImage, albedoImage,
           kb, lb, inputImgParams, globalParams,
           xyzArray, xyzLEFTArray, xyzTOPArray,normalArray,
           jacobianArray[0], errorVectorArray[0], weightsArray[0]);
@@ -1022,7 +1033,7 @@ void photometry::UpdateHeightMap(ModelParams inputImgParams, std::vector<ModelPa
 
         //determine invalid blocks in the overlap image - END
 
-        ComputeBlockJacobianOverlap(inputImage, inputImg_geo,
+        ComputeBlockJacobianOldOverlap(inputImage, inputImg_geo,
             overlapImg, overlapImg_geo,
             shadowImage, overlapShadowImage,
             albedoImage, kb, lb,

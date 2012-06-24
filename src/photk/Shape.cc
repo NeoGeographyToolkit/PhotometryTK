@@ -1,9 +1,19 @@
-// __BEGIN_LICENSE__
-// Copyright (C) 2006-2011 United States Government as represented by
-// the Administrator of the National Aeronautics and Space Administration.
-// All Rights Reserved.
+//__BEGIN_LICENSE__
+//  Copyright (c) 2009-2012, United States Government as represented by the
+//  Administrator of the National Aeronautics and Space Administration. All
+//  rights reserved.
+//
+//  The NGT platform is licensed under the Apache License, Version 2.0 (the
+//  "License"); you may not use this file except in compliance with the
+//  License. You may obtain a copy of the License at
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+//  Unless required by applicable law or agreed to in writing, software
+//  distributed under the License is distributed on an "AS IS" BASIS,
+//  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//  See the License for the specific language governing permissions and
+//  limitations under the License.
 // __END_LICENSE__
-
 
 #include <iostream>
 
@@ -20,9 +30,115 @@ using namespace vw::cartography;
 
 #include <photk/Shape.h>
 #include <photk/Reconstruct.h>
+#include <photk/Reflectance.h>
 #include <photk/Weights.h>
 #include <photk/Misc.h>
 using namespace photometry;
+
+//initializes the DEM tile
+void photometry::InitMeanDEMTile(std::string sampleTileFile,
+                                 ImageRecord currTileCorners,
+                                 std::string meanDEMTileFile,
+                                 std::vector<ImageRecord> & DEMImages,
+                                 std::vector<int> & overlap,
+                                 GlobalParams globalParams) {
+
+  // For a given tile, find all the input DEM tiles overlapping with
+  // it, combine them into one combined DEM, and then interpolate that
+  // combined DEM at all pixels of the desired tile.
+
+  // To make things a bit more efficient, when creating the combined
+  // DEM, we take only pixels not too far from the desired tile.
+
+  // Try to read the noDEMDataValue from the DEM images. If that fails, use
+  // the value provided in the parameter file.
+  float noDEMDataValue;
+  if ( overlap.size() == 0 || !readNoDEMDataVal(DEMImages[overlap[0]].path, noDEMDataValue)){
+    noDEMDataValue = globalParams.noDEMDataValue;
+  }
+  std::cout << "using noDEMDataValue: " << noDEMDataValue << std::endl;
+
+  // Create the DEM tile based on the current tile corners, and the sample tile
+  // from which we extract and then adjust the georeference.
+  std::cout << "Reading " << sampleTileFile << std::endl;
+  GeoReference DEMTileGeo;
+  read_georeference(DEMTileGeo, sampleTileFile);
+  ImageView<PixelGray<float> > meanDEMTile;
+  createGeoRefAndTileWithGivenCorners(currTileCorners.west, currTileCorners.east,
+                                      currTileCorners.south, currTileCorners.north,
+                                      DEMTileGeo, meanDEMTile // outputs
+                                      );
+  for (int k = 0 ; k < (int)meanDEMTile.rows(); ++k) {
+    for (int l = 0; l < (int)meanDEMTile.cols(); ++l) {
+      meanDEMTile(l, k) = noDEMDataValue;
+    }
+  }
+
+//  system("echo top1 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
+  // Find the combined DEM image as mentioned earlier.
+  ImageView<PixelGray<float> > combined_DEM;
+  GeoReference combined_DEM_geo;
+  Vector2 begTileLonLat = DEMTileGeo.pixel_to_lonlat(Vector2(0, 0));
+  Vector2 endTileLonLat = DEMTileGeo.pixel_to_lonlat(Vector2(meanDEMTile.cols()-1, meanDEMTile.rows()-1));
+  std::vector<std::string> overlapDEMVec;
+  for (int i = 0; i < (int)overlap.size(); i++){
+    overlapDEMVec.push_back(DEMImages[overlap[i]].path);
+  }
+  readDEMTilesIntersectingBox(noDEMDataValue, begTileLonLat, endTileLonLat, overlapDEMVec, // Inputs
+                              combined_DEM, combined_DEM_geo                               // Outputs
+                              );
+  
+//  system("echo top2 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
+  InterpolationView<EdgeExtensionView<ImageView<PixelGray<float> >, ConstantEdgeExtension>, BicubicInterpolation>
+    interp_combined_DEM = interpolate(combined_DEM, BicubicInterpolation(), ConstantEdgeExtension());
+  // Wrong below
+  //ImageViewRef<PixelGray<float> >  interp_combined_DEM
+  // = interpolate(edge_extend(combined_DEM.impl(),  ConstantEdgeExtension()),
+  //BilinearInterpolation());
+
+  // Interpolate
+  for (int k = 0 ; k < (int)meanDEMTile.rows(); ++k) {
+    for (int l = 0; l < (int)meanDEMTile.cols(); ++l) {
+      
+      Vector2 input_DEM_pix(l,k);
+      
+      //check for overlap between the output image and the input DEM image
+      Vector2 combined_pix = combined_DEM_geo.lonlat_to_pixel(DEMTileGeo.pixel_to_lonlat(input_DEM_pix));
+      float x = combined_pix[0];
+      float y = combined_pix[1];
+        
+      //check for valid DEM coordinates
+      if ((x>=0) && (x <= combined_DEM.cols()-1) && (y>=0) && (y<= combined_DEM.rows()-1)){
+
+        // Check that all four grid points used for interpolation are valid
+        if ( combined_DEM( floor(x), floor(y) ) != noDEMDataValue &&
+             combined_DEM( floor(x), ceil(y)  ) != noDEMDataValue &&
+             combined_DEM( ceil(x),  floor(y) ) != noDEMDataValue &&
+             combined_DEM( ceil(x),  ceil(y)  ) != noDEMDataValue
+             ){
+          meanDEMTile(l, k) = (float)interp_combined_DEM(x, y);
+        }
+      }
+    }
+  }
+  
+//  system("echo top3 is $(top -u $(whoami) -b -n 1|grep reconstruct)");
+
+  // Write the DEM together with the noDEMDataValue
+  std::cout << "Writing: " << meanDEMTileFile << std::endl;
+  DiskImageResourceGDAL::Options gdal_options;
+  gdal_options["COMPRESS"] = "LZW";
+  DiskImageResourceGDAL rsrc(meanDEMTileFile, meanDEMTile.format(), Vector2i(256, 256), gdal_options);
+  rsrc.set_nodata_write(noDEMDataValue);
+  write_georeference(rsrc, DEMTileGeo);
+  write_image(rsrc, meanDEMTile, TerminalProgressCallback("{Core}", "Processing:"));
+  
+  return;
+}
+
+// Only old code below
 
 float ComputeGradient_DEM(float /*intensity*/, float T,
                           float albedo, Vector3 s,
@@ -189,104 +305,6 @@ void photometry::InitDEM( ModelParams input_img_params,
 
 }
 
-//initializes the DEM tile
-void photometry::InitMeanDEMTile(std::string albedoTileFile,
-                                     std::string meanDEMTileFile,
-                                     std::vector<ImageRecord> & DEMImages,
-                                     std::vector<int> & overlap,
-                                     GlobalParams globalParams) {
-
-  // For a given tile, find all the input DEM tiles overlapping with
-  // it, combine them into one combined DEM, and then interpolate that
-  // combined DEM at all pixels of the desired tile.
-
-  // To make things a bit more efficient, when creating the combined
-  // DEM, we take only pixels not too far from the desired tile.
-
-  // Try to read the noDEMDataValue from the DEM images. If that fails, use
-  // the value provided in the parameter file.
-  float noDEMDataValue;
-  if ( overlap.size() == 0 || !readNoDEMDataVal(DEMImages[overlap[0]].path, noDEMDataValue)){
-    noDEMDataValue = globalParams.noDEMDataValue;
-  }
-  std::cout << "using noDEMDataValue: " << noDEMDataValue << std::endl;
-
-  // The albedo was not computed yet, but we have already created the albedo tiles
-  // with georeference but no pixel values. The DEM tiles will have the same
-  // dimensions/georeference as hte albedo tiles.
-  DiskImageView< PixelGray<float> >  albedoTile(albedoTileFile);
-  GeoReference DEMTileGeo;
-  read_georeference(DEMTileGeo, albedoTileFile);
-  std::cout << "Reading " << albedoTileFile << std::endl;
-
-  // The final result after interpolation will go here.
-  ImageView<PixelGray<float> > meanDEMTile(albedoTile.cols(), albedoTile.rows());
-  for (int k = 0 ; k < (int)meanDEMTile.rows(); ++k) {
-    for (int l = 0; l < (int)meanDEMTile.cols(); ++l) {
-      meanDEMTile(l, k) = noDEMDataValue;
-    }
-  }
-
-  // Find the combined DEM image as mentioned earlier.
-  ImageView<PixelGray<float> > combined_DEM;
-  GeoReference combined_DEM_geo;
-  Vector2 begTileLonLat = DEMTileGeo.pixel_to_lonlat(Vector2(0, 0));
-  Vector2 endTileLonLat = DEMTileGeo.pixel_to_lonlat(Vector2(meanDEMTile.cols()-1, meanDEMTile.rows()-1));
-  std::vector<std::string> overlapDEMVec;
-  for (int i = 0; i < (int)overlap.size(); i++){
-    overlapDEMVec.push_back(DEMImages[overlap[i]].path);
-  }
-  readDEMTilesIntersectingBox(noDEMDataValue, begTileLonLat, endTileLonLat, overlapDEMVec, // Inputs
-                              combined_DEM, combined_DEM_geo                               // Outputs
-                              );
-  
-  InterpolationView<EdgeExtensionView<ImageView<PixelGray<float> >, ConstantEdgeExtension>, BicubicInterpolation>
-    interp_combined_DEM = interpolate(combined_DEM, BicubicInterpolation(), ConstantEdgeExtension());
-  // Wrong below
-  //ImageViewRef<PixelGray<float> >  interp_combined_DEM
-  // = interpolate(edge_extend(combined_DEM.impl(),  ConstantEdgeExtension()),
-  //BilinearInterpolation());
-
-  // Interpolate
-  for (int k = 0 ; k < (int)meanDEMTile.rows(); ++k) {
-    for (int l = 0; l < (int)meanDEMTile.cols(); ++l) {
-      
-      Vector2 input_DEM_pix(l,k);
-      
-      //check for overlap between the output image and the input DEM image
-      Vector2 combined_pix = combined_DEM_geo.lonlat_to_pixel(DEMTileGeo.pixel_to_lonlat(input_DEM_pix));
-      float x = combined_pix[0];
-      float y = combined_pix[1];
-        
-      //check for valid DEM coordinates
-      if ((x>=0) && (x <= combined_DEM.cols()-1) && (y>=0) && (y<= combined_DEM.rows()-1)){
-
-        // Check that all four grid points used for interpolation are valid
-        if ( combined_DEM( floor(x), floor(y) ) != noDEMDataValue &&
-             combined_DEM( floor(x), ceil(y)  ) != noDEMDataValue &&
-             combined_DEM( ceil(x),  floor(y) ) != noDEMDataValue &&
-             combined_DEM( ceil(x),  ceil(y)  ) != noDEMDataValue
-             ){
-          meanDEMTile(l, k) = (float)interp_combined_DEM(x, y);
-        }
-      }
-    }
-  }
-
-  //system("echo dem top is $(top -u $(whoami) -b -n 1|grep lt-reconstruct)");
-
-  // Write the DEM together with the noDEMDataValue
-  std::cout << "Writing: " << meanDEMTileFile << std::endl;
-  DiskImageResourceGDAL::Options gdal_options;
-  gdal_options["COMPRESS"] = "LZW";
-  DiskImageResourceGDAL rsrc(meanDEMTileFile, meanDEMTile.format(), Vector2i(256, 256), gdal_options);
-  rsrc.set_nodata_write(noDEMDataValue);
-  write_georeference(rsrc, DEMTileGeo);
-  write_image(rsrc, meanDEMTile, TerminalProgressCallback("{Core}", "Processing:"));
-  
-  return;
-}
-
 
 
 //initializes the DEM file by getting the average DEM values in the overlapping areas of consecutive DEM files.
@@ -404,123 +422,3 @@ void DetectDEMOutliers( std::string input_DEM_file,
     //write_georeferenced_image(output_file, tm_image, geo1, TerminalProgressCallback());
 }
 
-//----------------------------THIS FUNCTION WILL BE REMOVED------------------------------
-//input_files[i], input_files[i-1], output_files[i], output_files[i-1]
-//writes the albedo of the current image in the area of overlap with the previous mage
-//writes the previous image in the area of overal with the current image
-void photometry::ComputeSaveDEM(std::string curr_input_file,
-                                    std::string prev_input_file,
-                                    std::string prior_DEM_file,
-                                    std::string output_DEM_file,
-                                    ModelParams currModelParams,
-                                    ModelParams prevModelParams) {
-    DiskImageView<PixelMask<PixelGray<uint8> > > curr_image(curr_input_file);
-    DiskImageView<PixelMask<PixelGray<uint8> > > prev_image(prev_input_file);
-
-    GeoReference prev_geo, curr_geo;
-    read_georeference(prev_geo, prev_input_file);
-    read_georeference(curr_geo, curr_input_file);
-
-    float prevSunCorrection, currSunCorrection;
-
-    //printf("exposure_time = %f, a_rescale = %f, b_rescale = %f\n",
-    //        currModelParams.exposureTime, currModelParams.rescalingParams[0], currModelParams.rescalingParams[1]);
-    printf("exposure_time = %f\n", currModelParams.exposureTime);
-    // This is the wrong way of doing interpolation. See the Stereo module for the right way.
-    ImageViewRef<PixelMask<PixelGray<uint8> > >  interp_prev_image = interpolate(edge_extend(prev_image.impl(),
-                                                                                 ConstantEdgeExtension()),
-                                                                                 BilinearInterpolation());
-
-    //read the prior DEM file
-    DiskImageView<PixelGray<float> >  prior_dem_image(prior_DEM_file);
-    GeoReference prior_dem_geo;
-    read_georeference(prior_dem_geo, prior_DEM_file);
-
-    ImageView<PixelGray<float> > out_dem_image(prior_dem_image.cols(), prior_dem_image.rows());
-
-    for (int k=0; k < (int)curr_image.rows(); ++k) {
-      for (int l=0; l < (int)curr_image.cols(); ++l) {
-
-         Vector2 curr_sample_pix(l,k);
-
-         if ( is_valid(curr_image(l,k)) ) {
-
-           Vector2 lon_lat = curr_geo.pixel_to_lonlat(curr_sample_pix);
-           Vector2 sample_pix_dem = prior_dem_geo.lonlat_to_pixel(prior_dem_geo.pixel_to_lonlat(curr_sample_pix));
-
-           int x = (int)sample_pix_dem[0];
-           int y = (int)sample_pix_dem[1];
-
-           //check for valid DEM coordinates
-           if ((x>=0) && (x < out_dem_image.cols()) && (y>=0) && (y< out_dem_image.rows())){
-
-             Vector3 longlat3(lon_lat(0),lon_lat(1),(out_dem_image)(x, y));
-             Vector3 xyz = curr_geo.datum().geodetic_to_cartesian(longlat3);
-
-             Vector2 sample_pix_dem_left;
-             sample_pix_dem_left(0) = x-1;
-             sample_pix_dem_left(1) = y;
-
-             Vector2 sample_pix_dem_top;
-             sample_pix_dem_top(0) = x;
-             sample_pix_dem_top(1) = y-1;
-
-
-             //check for valid DEM pixel value and valid left and top coordinates
-             if ((sample_pix_dem_left(0) >= 0) && (sample_pix_dem_top(1) >= 0) && (out_dem_image(x,y) != -10000)){
-
-               Vector2 lon_lat_left = prior_dem_geo.pixel_to_lonlat(sample_pix_dem_left);
-               Vector3 longlat3_left(lon_lat_left(0),lon_lat_left(1),(out_dem_image)(sample_pix_dem_left(0), sample_pix_dem_left(1)));
-               Vector3 xyz_left = curr_geo.datum().geodetic_to_cartesian(longlat3_left);
-
-               Vector2 lon_lat_top = prior_dem_geo.pixel_to_lonlat(sample_pix_dem_top);
-               Vector3 longlat3_top(lon_lat_top(0),lon_lat_top(1),(out_dem_image)(sample_pix_dem_top(0), sample_pix_dem_top(1)));
-               Vector3 xyz_top = curr_geo.datum().geodetic_to_cartesian(longlat3_top);
-
-               Vector3 normal = computeNormalFrom3DPoints(xyz, xyz_left, xyz_top);
-
-               currSunCorrection = -computeReflectanceFromNormal(currModelParams.sunPosition, xyz,  normal);
-
-               out_dem_image(l, k) = (float)curr_image(l, k)/(currModelParams.exposureTime*currSunCorrection);
-
-               //determine the point in the previous image with the same lon and lat
-               Vector2 prev_sample_pix = prev_geo.lonlat_to_pixel(lon_lat);
-               prev_sample_pix[0] = floor(prev_sample_pix[0]);
-               prev_sample_pix[1] = floor(prev_sample_pix[1]);
-               PixelMask<PixelGray<uint8> > prev_image_pixel = interp_prev_image(prev_sample_pix[0], prev_sample_pix[1]);
-
-               if ( is_valid (prev_image_pixel) ) {
-
-                 prevSunCorrection = -computeReflectanceFromNormal(prevModelParams.sunPosition, xyz,  normal);
-
-                 float intensity, albedo;
-
-                 Vector3 xyz_prior;
-                 float curr_grad = ComputeGradient_DEM(intensity, currModelParams.exposureTime, albedo, currModelParams.sunPosition, xyz, xyz_left, xyz_top, xyz_prior);
-                 float prev_grad = ComputeGradient_DEM(prev_image_pixel, prevModelParams.exposureTime, albedo, prevModelParams.sunPosition, xyz, xyz_left, xyz_top, xyz_prior);
-                 float curr_error = ComputeError_DEM(intensity, currModelParams.exposureTime, albedo, currSunCorrection, xyz, xyz_prior);
-                 float prev_error = ComputeError_DEM(prev_image_pixel, prevModelParams.exposureTime, albedo, prevSunCorrection, xyz, xyz_prior);
-                 float delta;
-
-                 //compute delta
-                 delta = (prev_grad*prev_error + curr_grad*curr_error)/(prev_grad*prev_grad + curr_grad*curr_grad);
-                 xyz[2] = xyz[2] + delta;
-
-                 out_dem_image(l, k) = xyz[2];
-
-               }
-
-             }
-           }
-         }
-       }
-    }
-
-    printf("output_DEM_file = %s\n", output_DEM_file.c_str());
-
-    write_georeferenced_image(output_DEM_file,
-                              channel_cast<uint8>(clamp(out_dem_image,0.0,255.0)),
-                              curr_geo, TerminalProgressCallback("photometry","Processing:"));
-
-
-}

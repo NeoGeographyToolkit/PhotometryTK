@@ -45,8 +45,8 @@ endif(ENABLE_RPATHS)
 include(AddPHOTK)
 set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_MULTITHREADED ON )
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -DBOOST_FILESYSTEM_VERSION=2)
-find_package(Boost 1.36.0
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+find_package(Boost 1.50.0
   COMPONENTS
   program_options
   system

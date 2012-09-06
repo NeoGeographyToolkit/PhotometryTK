@@ -1,5 +1,6 @@
 include_directories(${VISIONWORKBENCH_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${PROTOBUF_INCLUDE_DIRS})
 
 # Reusable Vision Workbench Patterns
 set(VISIONWORKBENCH_BASE_LIBRARIES

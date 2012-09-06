@@ -1,5 +1,6 @@
 include_directories(${VISIONWORKBENCH_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${PROTOBUF_INCLUDE_DIRS})
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
 

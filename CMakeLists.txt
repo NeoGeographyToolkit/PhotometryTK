@@ -62,6 +62,7 @@ find_package(VisionWorkbench REQUIRED
   cartography
   )
 find_package(GooglePerfTools)
+find_package(Protobuf)
 photk_enable_testing()
 
 if (ENABLE_PROFILING AND GOOGLE_PERFTOOLS_FOUND)
@@ -75,8 +76,6 @@ if (ENABLE_TCMALLOC AND GOOGLE_PERFTOOLS_FOUND)
 else()
   set(PHOTK_ENABLE_TCMALLOC OFF)
 endif()
-
-message("PHOTK IS " ${PHOTK_ENABLE_PROFILING})
 
 # Produce photk/config.h
 configure_file(

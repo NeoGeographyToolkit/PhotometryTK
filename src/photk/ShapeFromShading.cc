@@ -335,7 +335,7 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
                                       std::string sfsTileFile,
                                       std::vector<ModelParams> & overlapImgParams,
                                       GlobalParams globalParams){
-
+#if 0 // this does not compile
   float noDEMDataValue;
   if ( !readNoDEMDataVal(DEMTileFile, noDEMDataValue)){
     std::cerr << "ERROR: Could not read the NoData Value from " << DEMTileFile << std::endl;
@@ -531,7 +531,8 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
   //write in the updated DEM
   std::cout << "Writing: " << sfsTileFile << std::endl;
   write_georeferenced_image(sfsTileFile, sfsDEM,
-      DEM_geo, TerminalProgressCallback("photometry","Processing:"));
+                            DEM_geo, TerminalProgressCallback("photometry","Processing:"));
+#endif
 }
 
 // Only old code below, using images, not tiles
@@ -829,7 +830,7 @@ ComputeBlockJacobianOldOverlap(ImageViewBase<ViewT1> const& inputImage, GeoRefer
 }
 
 
-
+#if 0
 
 //call function for the update of the height map. main call function for shape from shading - from multiple images
 void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<ModelParams> overlapImgParams, GlobalParams globalParams)
@@ -1108,3 +1109,4 @@ void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<Mode
   //write_georeferenced_image(errorHeightFilename, errorHeight,
   //    DEM_geo, TerminalProgressCallback("photometry","Processing:"));
 }
+#endif

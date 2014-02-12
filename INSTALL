@@ -24,7 +24,7 @@ setting configuration options is easier with the 'ccmake' tool.
   1. cd PhotometryTK source directory
   2. mkdir build
   3. cd build
-  4. cmake .. -DVISIONWORKBENCH_ROOT:PATH=${YOUR VW INSTALL DIR}
+  4. cmake .. -DVISIONWORKBENCH_ROOT:PATH=${YOUR VW INSTALL DIR} \
               -DBOOST_ROOT:PATH=${YOUR BOOST INSTALL DIR}
 
 Here are some additional options you can set in the cmake call:

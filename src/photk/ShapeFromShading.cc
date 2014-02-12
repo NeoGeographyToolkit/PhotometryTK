@@ -335,7 +335,6 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
                                       std::string sfsTileFile,
                                       std::vector<ModelParams> & overlapImgParams,
                                       GlobalParams globalParams){
-#if 0 // this does not compile
   float noDEMDataValue;
   if ( !readNoDEMDataVal(DEMTileFile, noDEMDataValue)){
     std::cerr << "ERROR: Could not read the NoData Value from " << DEMTileFile << std::endl;
@@ -487,7 +486,7 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
         
       //solves lhs = rhs*x and stores results in lhs
       try {
-        solve_symmetric_nocopy(rhs,lhs);
+        solve_symmetric_modify(rhs,lhs);
         for (int k = 0 ; k < verBlockSize; ++k) {
           for (int l = 0; l < horBlockSize; ++l) {
 
@@ -521,7 +520,7 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
         printf("Error\n");
       }
 
-      //solve_symmetric_nocopy(rhs, lhs);
+      //solve_symmetric_modify(rhs, lhs);
 
       //copy lhs to back DEMTile
 
@@ -532,7 +531,6 @@ void photometry::UpdateHeightMapTiles(std::string DEMTileFile,
   std::cout << "Writing: " << sfsTileFile << std::endl;
   write_georeferenced_image(sfsTileFile, sfsDEM,
                             DEM_geo, TerminalProgressCallback("photometry","Processing:"));
-#endif
 }
 
 // Only old code below, using images, not tiles
@@ -830,8 +828,6 @@ ComputeBlockJacobianOldOverlap(ImageViewBase<ViewT1> const& inputImage, GeoRefer
 }
 
 
-#if 0
-
 //call function for the update of the height map. main call function for shape from shading - from multiple images
 void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<ModelParams> overlapImgParams, GlobalParams globalParams)
 {
@@ -1060,7 +1056,7 @@ void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<Mode
       }
       //solves lhs = rhs*x and stores results in lhs
       try {
-        solve_symmetric_nocopy(rhs,lhs);
+        solve_symmetric_modify(rhs,lhs);
         for (int k = 0 ; k < verBlockSize; ++k) {
           for (int l = 0; l < horBlockSize; ++l) {
 
@@ -1094,7 +1090,7 @@ void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<Mode
         printf("Error\n");
       }
 
-      //solve_symmetric_nocopy(rhs, lhs);
+      //solve_symmetric_modify(rhs, lhs);
 
       //copy lhs to back meanDEM
 
@@ -1109,4 +1105,3 @@ void photometry::UpdateHeightMapOld(ModelParams inputImgParams, std::vector<Mode
   //write_georeferenced_image(errorHeightFilename, errorHeight,
   //    DEM_geo, TerminalProgressCallback("photometry","Processing:"));
 }
-#endif

@@ -12,8 +12,8 @@ set(VISIONWORKBENCH_BASE_LIBRARIES
 
 # Executables
 set(PHOTK_USED_LIBS PhotometryTK ${VISIONWORKBENCH_CARTOGRAPHY_LIBRARY} ${Boost_LIBRARIES})
-add_photk_tool(reconstruct 
-  reconstruct.cc)
+add_photk_tool(reconstruct reconstruct.cc)
+add_photk_tool(dem_mosaic dem_mosaic.cc)
 
 # Scripts
 install( FILES reconstruct.sh

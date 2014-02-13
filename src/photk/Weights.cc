@@ -24,8 +24,8 @@
 
 #include <iostream>
 #include <string>
-
 #include <vector>
+#include <limits>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -131,22 +131,18 @@ float ComputeWeights(Vector2 pix, Vector2 C, float maxDistance)
 }
 */
 
-void photometry::ComputeImageCenterLines(struct ModelParams & modelParams){
+template<class ImageT>
+void  ComputeCenterLines(struct ModelParams & modelParams,
+                         ImageT const& input_img){
 
-  // Compute the center of the image.
+  // Compute the centerlines of the image. Their product at each pixel
+  // will give a function which is continuous, positive where the
+  // image has data, and zero where it does not.
   
   // A re-implementation of ComputeImageHCenterLine and ComputeImageVCenterLine
   // which is more efficient and uses less memory since it does only one
   // pass through the image.
 
-  std::string input_img_file = modelParams.inputFilename;
-  
-  printf("file=%s\n", input_img_file.c_str());
-  
-  // *r_hCenterLine = ComputeImageHCenterLine(input_img_file, r_hMaxDistArray);
-  // *r_vCenterLine = ComputeImageVCenterLine(input_img_file, r_vMaxDistArray);
-  
-  DiskImageView<PixelMask<PixelGray<uint8> > >  input_img(input_img_file);
   int numRows = input_img.rows();
   int numCols = input_img.cols();
 
@@ -223,6 +219,40 @@ void photometry::ComputeImageCenterLines(struct ModelParams & modelParams){
   
   return;
 }
+
+void photometry::ComputeImageCenterLines(struct ModelParams & modelParams){
+
+  // Here we assume the image has two bands, with the second one being
+  // the mask.
+  std::string input_img_file = modelParams.inputFilename;
+  
+  printf("file=%s\n", input_img_file.c_str());
+  
+  DiskImageView<PixelMask<PixelGray<uint8> > >  input_img(input_img_file);
+  ComputeCenterLines(modelParams, input_img);
+}
+
+void photometry::ComputeDEMCenterLines(struct ModelParams & modelParams){
+
+  // Here we assume that the image has just one band, but may
+  // have a no-data field which we use to mask invalid pixels.
+  
+  std::string dem_file = modelParams.inputFilename;
+  vw_out() << "Computing centerlines for: " << dem_file << std::endl;
+  
+  // If we have a nodata value, create a mask.
+  double nodata_value = std::numeric_limits<double>::quiet_NaN();
+  {
+    DiskImageResourceGDAL in_rsrc(dem_file);
+    if ( in_rsrc.has_nodata_read() ) nodata_value = in_rsrc.nodata_read();
+  }
+  
+  DiskImageView<float> dem_disk_image(dem_file);
+  ImageViewRef< PixelMask<float> > dem = create_mask(dem_disk_image, nodata_value);
+  
+  ComputeCenterLines(modelParams, dem);
+}
+
 
 int*
 photometry::ComputeImageHCenterLine(std::string input_img_file,

@@ -857,7 +857,11 @@ Vector4 photometry::getImageCorners(std::string imageFile){
   DiskImageView<PixelMask<PixelGray<uint8> > >  image(imageFile);
 
   GeoReference imageGeo;
-  read_georeference(imageGeo, imageFile);
+  bool is_good = read_georeference(imageGeo, imageFile);
+  if (!is_good){
+    std::cerr << "No georeference found in " << imageFile << std::endl;
+    exit(1);
+  }
   Vector4 imageCorners = ComputeGeoBoundary(imageGeo, image.cols(), image.rows());
   return imageCorners;
 }

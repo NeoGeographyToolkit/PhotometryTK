@@ -31,7 +31,7 @@ labelStr=$2
 # Path to executables
 PHOTOMETRY_TOOLKIT_PATH=$HOME/PhotometryTK
 VISION_WORKBENCH_PATH=$HOME/visionworkbench
-reconstruct="$PHOTOMETRY_TOOLKIT_PATH/build/src/tools/reconstruct"
+reconstruct="$PHOTOMETRY_TOOLKIT_PATH/src/tools/reconstruct"
 image2qtree="$VISION_WORKBENCH_PATH/src/vw/tools/image2qtree"
 
 # Output directory

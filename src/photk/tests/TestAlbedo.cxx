@@ -94,11 +94,11 @@ TEST_F( TestAlbedo, FullCycle ) {
   };
   
   for (int s = 0 ; s < sizeof(files)/sizeof(string); s++){
-    string cmd = "ln -s ../../../../src/photk/tests/" + files[s] + " . > /dev/null 2>&1";
+    string cmd = "ln -s ../../../src/photk/tests/" + files[s] + " . > /dev/null 2>&1";
     //std::cout << cmd << std::endl;
     system(cmd.c_str());
   }
-  cmd = "ln -s ../../../../src/tools/reconstruct.sh . > /dev/null 2>&1";
+  cmd = "ln -s ../../../src/tools/reconstruct.sh . > /dev/null 2>&1";
   //std::cout << cmd << std::endl;
   int flag = system(cmd.c_str());
   

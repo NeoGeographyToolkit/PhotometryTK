@@ -47,6 +47,21 @@ using namespace std;
 #include <photk/Shape.h>
 using namespace photometry;
 
+// If prefix is "dir/out", create directory "dir"
+void photometry::create_out_dir(std::string out_prefix){
+
+  fs::path out_prefix_path(out_prefix);
+  if (out_prefix_path.has_parent_path()) {
+    if (!fs::is_directory(out_prefix_path.parent_path())) {
+      vw_out() << "\nCreating output directory: "
+               << out_prefix_path.parent_path() << std::endl;
+      fs::create_directory(out_prefix_path.parent_path());
+    }
+  }
+
+  return;
+}
+
 // Upsample a geo-referenced tiff image. Care is taken to deal properly with invalid pixels.
 void photometry::upsample_uint8_image(std::string output_file, std::string input_file, int upsampleFactor){
 

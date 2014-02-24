@@ -32,6 +32,8 @@
 
 namespace photometry {
 
+  void create_out_dir(std::string out_prefix);
+
   void upsample_uint8_image(std::string output_file, std::string input_file, int upsampleFactor);
   
   //upsamples a DEM by an upsampleFactor

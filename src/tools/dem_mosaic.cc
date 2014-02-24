@@ -18,6 +18,23 @@
 /// \file dem_mosaic.cc
 ///
 
+// A tool to mosaic and blend DEMs, and output the mosaic as tiles.
+
+// Note 1: In practice, the tool may be more efficient if the entire
+// mosaic is written out as one single large tile rather than being
+// broken up.
+
+// Note 2: The tool can be high on memory usage, so individual
+// processes may need to be run on separate machines.
+
+// To do:
+// Deal with the protobuf dependency in the build system.
+// Make it work for other projections except longlat.
+// Fix cmake to build in build/ and not in base dir.
+// Add unit tests.
+
+#define USE_GRASSFIRE 1
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -47,21 +64,32 @@ namespace po = boost::program_options;
 #include <boost/filesystem/convenience.hpp>
 namespace fs = boost::filesystem;
 
-// A tool to mosaic and blend DEMs.
-// To do: Make it work for other projections except longlat.
+#if USE_GRASSFIRE
+typedef PixelGrayA<float> DemPixelT;
+#else
+typedef float DemPixelT;
+#endif
 
 class DemMosaicView: public ImageViewBase<DemMosaicView>{
   int m_cols, m_rows;
+  bool m_use_no_weights;
   vector<ModelParams> & m_modelParamsArray;
+  vector< DiskImageView<DemPixelT> > const& m_images;
+  vector<cartography::GeoReference> const& m_georefs; 
   cartography::GeoReference m_out_georef;
   vector<double> m_nodata_values;
   double m_out_nodata_value;
 
 public:
-  DemMosaicView(int cols, int rows, vector<ModelParams> & modelParamsArray,
+  DemMosaicView(int cols, int rows, bool use_no_weights,
+                vector<ModelParams> & modelParamsArray,
+                vector< DiskImageView<DemPixelT> > const& images,
+                vector<cartography::GeoReference> const& georefs,
                 cartography::GeoReference const& out_georef,
                 vector<double> const& nodata_values, double out_nodata_value):
-    m_cols(cols), m_rows(rows), m_modelParamsArray(modelParamsArray),
+    m_cols(cols), m_rows(rows), m_use_no_weights(use_no_weights),
+    m_modelParamsArray(modelParamsArray),
+    m_images(images), m_georefs(georefs),
     m_out_georef(out_georef), m_nodata_values(nodata_values),
     m_out_nodata_value(out_nodata_value){}
   
@@ -91,17 +119,10 @@ public:
 
     for (int dem_iter = 0; dem_iter < (int)m_modelParamsArray.size(); dem_iter++){
 
-      std::string curr_file = m_modelParamsArray[dem_iter].inputFilename;
-      cartography::GeoReference georef;
-      bool is_good = cartography::read_georeference( georef, curr_file );
-      if (!is_good)
-        vw_throw(ArgumentErr() << "DEM: " << curr_file
-                 << " does not have a georeference.\n");
-
+      cartography::GeoReference georef = m_georefs[dem_iter];
+      ImageViewRef<DemPixelT> curr_disk_dem = m_images[dem_iter];
       double nodata_value = m_nodata_values[dem_iter];
       
-      DiskImageView<float> curr_disk_dem(curr_file);
-
       // The tile corners as pixels in curr_dem
       Vector2 b = georef.lonlat_to_pixel
         (m_out_georef.pixel_to_lonlat(bbox.min()));
@@ -116,11 +137,16 @@ public:
       if (curr_box.empty()) continue;
             
       // Read the whole chunk into memory, to speed things up
-      ImageView<float> curr_dem = crop(curr_disk_dem, curr_box);
-      ImageViewRef< PixelMask<float> > interp_dem
-        = interpolate(create_mask(curr_dem, nodata_value),
-                      BilinearInterpolation(), ConstantEdgeExtension());
-
+      ImageView<DemPixelT> curr_dem = crop(curr_disk_dem, curr_box);
+#if USE_GRASSFIRE
+      ImageViewRef<DemPixelT> interp_dem
+        = interpolate(curr_dem, BilinearInterpolation(), ConstantEdgeExtension());
+#else
+      ImageViewRef< PixelMask<DemPixelT> > interp_dem
+      = interpolate(create_mask(curr_dem, nodata_value),
+                    BilinearInterpolation(), ConstantEdgeExtension());
+#endif
+      
       for (int c = 0; c < bbox.width(); c++){
         for (int r = 0; r < bbox.height(); r++){
           Vector2 out_pix(c +  bbox.min().x(), r +  bbox.min().y());
@@ -131,12 +157,28 @@ public:
           // below must use x <= cols()-1 as x is double
           if (x >= 0 && x <= interp_dem.cols()-1 &&
               y >= 0 && y <= interp_dem.rows()-1 ){
-            PixelMask<float> pval = interp_dem(x, y);
+#if USE_GRASSFIRE
+            // If we have weights of 0, that means there are invalid pixels,
+            // so skip this point.
+            int i = (int)floor(x), j = (int)floor(y);
+            if (curr_dem(i,   j  ).a() <= 0 ||
+                curr_dem(i+1, j  ).a() <= 0 ||
+                curr_dem(i,   j+1).a() <= 0 ||
+                curr_dem(i+1, j+1).a() <= 0
+                )continue;
+            
+            DemPixelT pval = interp_dem(x, y);
+            double val = pval.v();
+            double wt = pval.a();
+#else
+            PixelMask<DemPixelT> pval = interp_dem(x, y);
             if (! is_valid(pval)) continue;
             double val = pval.child();
             double wt = ComputeLineWeightsHV(in_pix,
                                              m_modelParamsArray[dem_iter]);
+#endif
             if (wt <= 0) continue;
+            if (m_use_no_weights) wt = 1.0; // so weights are only 0 or 1.
             if ( tile(c, r) == m_out_nodata_value || isnan(tile(c, r)) )
               tile(c, r) = 0;
             tile(c, r) += wt*val;
@@ -149,13 +191,18 @@ public:
     } // end iterating over DEMs
 
     // Divide by the weights
+    int num_valid_pixels = 0;
     for (int c = 0; c < bbox.width(); c++){
       for (int r = 0; r < bbox.height(); r++){
-        if ( weights(c, r) > 0 )
-          tile(c, r) /= weights(c, r);        
+        if ( weights(c, r) > 0 ){
+          tile(c, r) /= weights(c, r);
+          num_valid_pixels++;
+        }
       }
     }
-    
+
+//     vw_out() << "Num valid pixels in " << bbox  << ' ' << num_valid_pixels
+//              << std::endl;
     return prerasterize_type(tile, -bbox.min().x(), -bbox.min().y(),
                              cols(), rows() );
   }
@@ -170,20 +217,30 @@ int main( int argc, char *argv[] ) {
 
   for (int s = 0; s < argc; s++) vw_out() << argv[s] << " ";
   vw_out() << endl;
-  
+
   try{
-    
-    string dem_list_file, out_dem_file;
+
+    bool use_no_weights = false;
+    string dem_list_file, out_dem_dir;
     double mpp = 0.0;
-    int num_threads = 0;
+    double out_nodata_value = numeric_limits<double>::quiet_NaN();
+    int num_threads = 0, tile_size = -1, tile_index = -1;
     po::options_description general_options("Options");
     general_options.add_options()
       ("dem-list-file,l", po::value<string>(&dem_list_file),
        "List of DEM files to mosaic, one per line.")
       ("mpp", po::value<double>(&mpp),
        "Output DEM resolution in meters per pixel.")
-      ("output-dem,o", po::value<string>(&out_dem_file),
-       "Output DEM file name.")
+      ("tile-size", po::value<int>(&tile_size),
+       "The size of DEM tile files to write, in pixels.")
+      ("tile-index", po::value<int>(&tile_index),
+       "The index of the tile to save in the list of tiles (starting from zero).")
+      ("output-dem-dir,o", po::value<string>(&out_dem_dir),
+       "The directory in which to save the DEM tiles.")
+      ("output-nodata-value", po::value<double>(&out_nodata_value),
+       "No-data value to use on output.")
+      ("use-no-weights", po::bool_switch(&use_no_weights)->default_value(false),
+       "Average the DEMs to mosaic without using weights.")
       ("threads", po::value<int>(&num_threads),
        "Number of threads to use.")
       ("help,h", "Display this help message.");
@@ -212,12 +269,18 @@ int main( int argc, char *argv[] ) {
     if (mpp <= 0.0)
       vw_throw(ArgumentErr() << "The output resolution in meters per "
                << "pixel must be set and positive.\n");
-    if (out_dem_file == "")
-      vw_throw(ArgumentErr() << "No output DEM file was specified.\n");
+    if (out_dem_dir == "")
+      vw_throw(ArgumentErr() << "No output DEM directory was specified.\n");
     if (num_threads == 0)
       vw_throw(ArgumentErr() << "The number of threads must be set and "
                << "positive.\n");
-
+    if (tile_size <= 0)
+      vw_throw(ArgumentErr() << "The size of a tile in pixels must "
+               << "be set and positive.\n");
+    if (tile_index < 0)
+      vw_throw(ArgumentErr() << "The index of the tile to save must be set "
+               << "and non-negative.\n");
+    
     // Read the DEMs to mosaic
     vector<string> dem_files;
     ifstream is(dem_list_file.c_str());
@@ -227,9 +290,8 @@ int main( int argc, char *argv[] ) {
       vw_throw(ArgumentErr() << "No DEM files to mosaic.\n");
     is.close();
     
-    // Read nodata from first DEM
-    double out_nodata_value = numeric_limits<double>::quiet_NaN();
-    {
+    // Read nodata from first DEM, unless the user chooses to specify it.
+    if (!vm.count("output-nodata-value")){
       DiskImageResourceGDAL in_rsrc(dem_files[0]);
       if ( in_rsrc.has_nodata_read() ) out_nodata_value = in_rsrc.nodata_read();
     }
@@ -249,53 +311,114 @@ int main( int argc, char *argv[] ) {
     // Convert from meters/pixel to pixels/degree, and form the
     // georef. We will use the geographic projection only, so this may
     // not work well around poles.
-    cartography::GeoReference georef;
-    bool is_good = read_georeference(georef, dem_files[0]);
+    cartography::GeoReference out_georef;
+    bool is_good = read_georeference(out_georef, dem_files[0]);
     if (!is_good){
       std::cerr << "No georeference found in " << dem_files[0] << std::endl;
       exit(1);
     }
-    double spacing = 360.0*mpp/( 2*M_PI*georef.datum().semi_major_axis() );
-    georef.set_geographic(); // wipe original georef
+    double spacing = 360.0*mpp/( 2*M_PI*out_georef.datum().semi_major_axis() );
+    out_georef.set_geographic(); // wipe original georef
     Matrix<double,3,3> transform;
     transform.set_identity();
     transform(0, 0) = spacing;
     transform(1, 1) = -spacing;
-    georef.set_transform(transform);
-    Vector2 beg_pix = georef.lonlat_to_pixel(Vector2(ll_bbox[0], ll_bbox[3]));
-    georef = crop(georef, beg_pix[0], beg_pix[1]);
+    out_georef.set_transform(transform);
+    Vector2 beg_pix = out_georef.lonlat_to_pixel(Vector2(ll_bbox[0], ll_bbox[3]));
+    out_georef = crop(out_georef, beg_pix[0], beg_pix[1]);
 
     // Image size
-    Vector2 end_pix = georef.lonlat_to_pixel(Vector2(ll_bbox[1], ll_bbox[2]));
+    Vector2 end_pix = out_georef.lonlat_to_pixel(Vector2(ll_bbox[1], ll_bbox[2]));
     int cols = (int)ceil(end_pix[0]);
     int rows = (int)ceil(end_pix[1]);
 
-    // Compute the weights, and store the no-data values
+    // Compute the weights, and store the no-data values, pointers
+    // to images, and georeferences (for speed).
     vector<ModelParams> modelParamsArray;
     vector<double> nodata_values;
+    vector< DiskImageView<DemPixelT> > images;
+    vector< cartography::GeoReference > georefs;
     for (int dem_iter = 0; dem_iter < (int)dem_files.size(); dem_iter++){
       modelParamsArray.push_back(ModelParams());
       modelParamsArray[dem_iter].inputFilename = dem_files[dem_iter];
-      ComputeDEMCenterLines(modelParamsArray[dem_iter]);
+      images.push_back(DiskImageView<DemPixelT>( dem_files[dem_iter] ));
 
+#if USE_GRASSFIRE
+#else
+      ComputeDEMCenterLines(modelParamsArray[dem_iter]);
+#endif
+      cartography::GeoReference geo;
+      bool is_good = read_georeference(geo, dem_files[dem_iter]);
+      if (!is_good){
+        std::cerr << "No georeference found in " << dem_files[dem_iter]
+                  << std::endl;
+        exit(1);
+      }
+      georefs.push_back(geo);
+      
       double curr_nodata_value = out_nodata_value;
       DiskImageResourceGDAL in_rsrc(dem_files[dem_iter]);
       if ( in_rsrc.has_nodata_read() ) curr_nodata_value = in_rsrc.nodata_read();
       nodata_values.push_back(curr_nodata_value);
+
+#if USE_GRASSFIRE
+      boost::scoped_ptr<vw::SrcImageResource> src(vw::DiskImageResource::open(dem_files[dem_iter]));
+      int num_channels = src->channels();
+      int num_planes   = src->planes();
+      if (num_channels*num_planes != 2){
+        std::cerr << "Need to have an alpha channel with the grassfire weights in "
+                  << dem_files[dem_iter] << std::endl;
+        exit(1);
+      }
+#endif
+
     }
 
     // Form the mosaic and write it to disk
-    vw_out() << "Writing: " << out_dem_file << std::endl;
+    vw_out()<< "The size of the mosaic is " << cols << " x " << rows
+            << " pixels.\n";
+
+    int num_tiles_x = (int)ceil((double)cols/double(tile_size));
+    if (num_tiles_x <= 0) num_tiles_x = 1;
+    int num_tiles_y = (int)ceil((double)rows/double(tile_size));
+    if (num_tiles_y <= 0) num_tiles_y = 1;
+    int num_tiles = num_tiles_x*num_tiles_y;
+    vw_out() << "Number of tiles: " << num_tiles_x << " x "
+             << num_tiles_y << " = " << num_tiles << std::endl;
+
+    if (tile_index < 0 || tile_index >= num_tiles){
+      vw_out() << "Tile with index: " << tile_index << " is out of bounds."
+               << std::endl;
+      return 0;
+    }
+    int tile_index_y = tile_index / num_tiles_y;
+    int tile_index_x = tile_index - tile_index_y*num_tiles_y;
+    BBox2i tile_box(tile_index_x*tile_size, tile_index_y*tile_size,
+                    tile_size, tile_size);
+    tile_box.crop(BBox2i(0, 0, cols, rows));
+    ostringstream os; os << out_dem_dir << "/tile-" << tile_index << ".tif";
+    std::string dem_tile = os.str();
+    create_out_dir(dem_tile);
     vw::vw_settings().set_default_num_threads(num_threads);
     DiskImageResourceGDAL::Options gdal_options;
     gdal_options["COMPRESS"] = "LZW";
-    ImageViewRef<float> out_dem = DemMosaicView(cols, rows, modelParamsArray,
-                                                georef, nodata_values, out_nodata_value);
-    DiskImageResourceGDAL rsrc(out_dem_file, out_dem.format(), Vector2i(256, 256),
+    ImageViewRef<float> out_dem
+      = crop(DemMosaicView(cols, rows, use_no_weights,
+                           modelParamsArray, images, georefs,
+                           out_georef, nodata_values, out_nodata_value),
+             tile_box);
+    vw_out() << "Writing: " << dem_tile << std::endl;
+    DiskImageResourceGDAL rsrc(dem_tile, out_dem.format(), Vector2i(256, 256),
                                gdal_options);
     if (!isnan(out_nodata_value))
       rsrc.set_nodata_write(out_nodata_value);
-    write_georeference(rsrc, georef);
+    cartography::GeoReference crop_georef
+      = crop(out_georef, tile_box.min().x(), tile_box.min().y());
+    
+    Vector2 o = crop_georef.pixel_to_lonlat(Vector2());
+    std::cout << "corner lonlat is " << o << std::endl;
+      
+    write_georeference(rsrc, crop_georef);
     block_write_image(rsrc, out_dem, TerminalProgressCallback("{Core}",
                                                               "Processing:"));
     
@@ -306,3 +429,4 @@ int main( int argc, char *argv[] ) {
 
   return 0;
 }
+

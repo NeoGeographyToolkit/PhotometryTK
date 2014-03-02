@@ -19,13 +19,19 @@
 ///
 
 // A tool to mosaic and blend DEMs, and output the mosaic as tiles.
+// Unless USE_GRASSFIRE is set to 0 below, it expects DEMs to have an
+// alpha channel with the grassfire weights, which are used for
+// blending the DEMs. Such a DEM can be obtained from a regular DEM
+// using the VisionWorkbench grassfirealpha command.
 
 // Note 1: In practice, the tool may be more efficient if the entire
-// mosaic is written out as one single large tile rather than being
-// broken up.
+// mosaic is written out as one single large image, rather than being
+// broken up into tiles. To achieve that, just specify to the tool a
+// very large tile size, and use 0 for the tile index in the command
+// line options.
 
-// Note 2: The tool can be high on memory usage, so individual
-// processes may need to be run on separate machines.
+// Note 2: The tool can be high on memory usage, so processes for
+// individual tiles may need to be run on separate machines.
 
 // To do:
 // Deal with the protobuf dependency in the build system.

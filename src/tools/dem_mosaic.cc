@@ -240,13 +240,13 @@ int main( int argc, char *argv[] ) {
       ("tile-size", po::value<int>(&tile_size),
        "The size of DEM tile files to write, in pixels.")
       ("tile-index", po::value<int>(&tile_index),
-       "The index of the tile to save in the list of tiles (starting from zero).")
+       "The index of the tile to save in the list of tiles (starting from zero). If called with given tile size, and tile index of 0, the tool will print out how many tiles are there.")
       ("output-dem-dir,o", po::value<string>(&out_dem_dir),
        "The directory in which to save the DEM tiles.")
       ("output-nodata-value", po::value<double>(&out_nodata_value),
        "No-data value to use on output.")
       ("use-no-weights", po::bool_switch(&use_no_weights)->default_value(false),
-       "Average the DEMs to mosaic without using weights.")
+       "Average the DEMs to mosaic without using weights (the result is not as smooth).")
       ("threads", po::value<int>(&num_threads),
        "Number of threads to use.")
       ("help,h", "Display this help message.");

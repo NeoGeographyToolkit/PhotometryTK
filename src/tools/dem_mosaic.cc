@@ -35,7 +35,6 @@
 
 // To do:
 // Deal with the protobuf dependency in the build system.
-// Make it work for other projections except longlat.
 // Fix cmake to build in build/ and not in base dir.
 // Add unit tests.
 
@@ -78,7 +77,7 @@ typedef float DemPixelT;
 
 class DemMosaicView: public ImageViewBase<DemMosaicView>{
   int m_cols, m_rows;
-  bool m_use_no_weights;
+  bool m_use_no_weights, m_stack_dems;
   vector<ModelParams> & m_modelParamsArray;
   vector< DiskImageView<DemPixelT> > const& m_images;
   vector<cartography::GeoReference> const& m_georefs; 
@@ -87,13 +86,14 @@ class DemMosaicView: public ImageViewBase<DemMosaicView>{
   double m_out_nodata_value;
 
 public:
-  DemMosaicView(int cols, int rows, bool use_no_weights,
+  DemMosaicView(int cols, int rows, bool use_no_weights, bool stack_dems,
                 vector<ModelParams> & modelParamsArray,
                 vector< DiskImageView<DemPixelT> > const& images,
                 vector<cartography::GeoReference> const& georefs,
                 cartography::GeoReference const& out_georef,
                 vector<double> const& nodata_values, double out_nodata_value):
-    m_cols(cols), m_rows(rows), m_use_no_weights(use_no_weights),
+    m_cols(cols), m_rows(rows),
+    m_use_no_weights(use_no_weights), m_stack_dems(stack_dems),
     m_modelParamsArray(modelParamsArray),
     m_images(images), m_georefs(georefs),
     m_out_georef(out_georef), m_nodata_values(nodata_values),
@@ -184,11 +184,18 @@ public:
                                              m_modelParamsArray[dem_iter]);
 #endif
             if (wt <= 0) continue;
-            if (m_use_no_weights) wt = 1.0; // so weights are only 0 or 1.
+            if (m_use_no_weights || m_stack_dems) wt = 1.0; // so weights are only 0 or 1.
             if ( tile(c, r) == m_out_nodata_value || isnan(tile(c, r)) )
               tile(c, r) = 0;
-            tile(c, r) += wt*val;
-            weights(c, r) += wt;
+            if (!m_stack_dems){
+              // Combine the values
+              tile(c, r) += wt*val;
+              weights(c, r) += wt;
+            }else{
+              // Use just the last value
+              tile(c, r) = wt*val;
+              weights(c, r) = wt;
+            }
             
           }
         }
@@ -226,27 +233,31 @@ int main( int argc, char *argv[] ) {
 
   try{
 
-    bool use_no_weights = false;
+    bool use_no_weights = false, stack_dems = false;
     string dem_list_file, out_dem_dir;
-    double mpp = 0.0;
+    double mpp = 0.0, tr = 0.0;
     double out_nodata_value = numeric_limits<double>::quiet_NaN();
     int num_threads = 0, tile_size = -1, tile_index = -1;
     po::options_description general_options("Options");
     general_options.add_options()
       ("dem-list-file,l", po::value<string>(&dem_list_file),
        "List of DEM files to mosaic, one per line.")
-      ("mpp", po::value<double>(&mpp),
-       "Output DEM resolution in meters per pixel.")
-      ("tile-size", po::value<int>(&tile_size),
-       "The size of DEM tile files to write, in pixels.")
-      ("tile-index", po::value<int>(&tile_index),
-       "The index of the tile to save in the list of tiles (starting from zero). If called with given tile size, and tile index of 0, the tool will print out how many tiles are there.")
+      ("tr", po::value(&tr)->default_value(0.0),
+       "Output DEM resolution in target georeferenced units per pixel. If not specified, use the same resolution as the first DEM to be mosaicked.")
+      ("mpp", po::value<double>(&mpp)->default_value(0.0),
+       "Output DEM resolution in meters per pixel (at the equator). If not specified, use the same resolution as the first DEM to be mosaicked.")
+      ("tile-size", po::value<int>(&tile_size)->default_value(1000000),
+       "The maximum size of output DEM tile files to write, in pixels.")
+      ("tile-index", po::value<int>(&tile_index)->default_value(0),
+       "The index of the tile to save in the list of tiles (starting from zero). If called with given tile size, and no tile index, the tool will print out how many tiles are there.")
       ("output-dem-dir,o", po::value<string>(&out_dem_dir),
        "The directory in which to save the DEM tiles.")
       ("output-nodata-value", po::value<double>(&out_nodata_value),
        "No-data value to use on output.")
       ("use-no-weights", po::bool_switch(&use_no_weights)->default_value(false),
        "Average the DEMs to mosaic without using weights (the result is not as smooth).")
+      ("stack-dems", po::bool_switch(&stack_dems)->default_value(false),
+       "Stack each DEM on top of the previous one, without attempting to combine their values (the result is less smooth).")
       ("threads", po::value<int>(&num_threads),
        "Number of threads to use.")
       ("help,h", "Display this help message.");
@@ -272,9 +283,8 @@ int main( int argc, char *argv[] ) {
     // Error checking
     if (dem_list_file == "")
       vw_throw(ArgumentErr() << "No list of DEMs was specified.\n");
-    if (mpp <= 0.0)
-      vw_throw(ArgumentErr() << "The output resolution in meters per "
-               << "pixel must be set and positive.\n");
+    if (mpp > 0.0 && tr > 0.0)
+      vw_throw(ArgumentErr() << "Just one of the --mpp and --tr options needs to be set.\n");
     if (out_dem_dir == "")
       vw_throw(ArgumentErr() << "No output DEM directory was specified.\n");
     if (num_threads == 0)
@@ -286,6 +296,9 @@ int main( int argc, char *argv[] ) {
     if (tile_index < 0)
       vw_throw(ArgumentErr() << "The index of the tile to save must be set "
                << "and non-negative.\n");
+    if (use_no_weights && stack_dems){
+      vw_throw(ArgumentErr() << "At most one of --use-no-weights and --stack-dems must be set.\n");
+    }
     
     // Read the DEMs to mosaic
     vector<string> dem_files;
@@ -314,25 +327,36 @@ int main( int argc, char *argv[] ) {
       ll_bbox[3] = std::max(ll_bbox[3], corners[3]);
     }
 
-    // Convert from meters/pixel to pixels/degree, and form the
-    // georef. We will use the geographic projection only, so this may
-    // not work well around poles.
+    // Form the georef. The georef of the first DEM is used as initial guess.
     cartography::GeoReference out_georef;
     bool is_good = read_georeference(out_georef, dem_files[0]);
     if (!is_good){
       std::cerr << "No georeference found in " << dem_files[0] << std::endl;
       exit(1);
     }
-    double spacing = 360.0*mpp/( 2*M_PI*out_georef.datum().semi_major_axis() );
-    out_georef.set_geographic(); // wipe original georef
-    Matrix<double,3,3> transform;
-    transform.set_identity();
-    transform(0, 0) = spacing;
-    transform(1, 1) = -spacing;
-    out_georef.set_transform(transform);
+    double spacing = tr;
+    if (mpp > 0.0){
+      // First convert meters per pixel to degrees per pixel using
+      // the datum radius.
+      spacing = 360.0*mpp/( 2*M_PI*out_georef.datum().semi_major_axis() );
+      // Next, wipe the georef altogether, as we will use lon-lat.
+      out_georef.set_geographic();
+    }
+
+    // Use desired spacing if user-specified
+    if (spacing > 0.0){
+      Matrix<double,3,3> transform = out_georef.transform();
+      transform.set_identity();
+      transform(0, 0) = spacing;
+      transform(1, 1) = -spacing;
+      out_georef.set_transform(transform);
+    }
+    
+    // Set the lower-left corner
     Vector2 beg_pix = out_georef.lonlat_to_pixel(Vector2(ll_bbox[0], ll_bbox[3]));
     out_georef = crop(out_georef, beg_pix[0], beg_pix[1]);
-
+    std::cout << "Output georeference:\n" << out_georef << std::endl;
+    
     // Image size
     Vector2 end_pix = out_georef.lonlat_to_pixel(Vector2(ll_bbox[1], ll_bbox[2]));
     int cols = (int)ceil(end_pix[0]);
@@ -409,7 +433,7 @@ int main( int argc, char *argv[] ) {
     DiskImageResourceGDAL::Options gdal_options;
     gdal_options["COMPRESS"] = "LZW";
     ImageViewRef<float> out_dem
-      = crop(DemMosaicView(cols, rows, use_no_weights,
+      = crop(DemMosaicView(cols, rows, use_no_weights, stack_dems,
                            modelParamsArray, images, georefs,
                            out_georef, nodata_values, out_nodata_value),
              tile_box);
@@ -421,9 +445,6 @@ int main( int argc, char *argv[] ) {
     cartography::GeoReference crop_georef
       = crop(out_georef, tile_box.min().x(), tile_box.min().y());
     
-    Vector2 o = crop_georef.pixel_to_lonlat(Vector2());
-    std::cout << "corner lonlat is " << o << std::endl;
-      
     write_georeference(rsrc, crop_georef);
     block_write_image(rsrc, out_dem, TerminalProgressCallback("{Core}",
                                                               "Processing:"));

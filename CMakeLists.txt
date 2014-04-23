@@ -12,6 +12,9 @@ set(PACKAGE_NAME "Photometry Toolkit")
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "z.m.moratto@nasa.gov")
 
+set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_ROOT}/include)
+set(PROTOBUF_LIBRARY ${PROTOBUF_ROOT}/lib/libprotobuf.so) 
+
 # Custom PhoTK options
 option(PHOTK_BUILD_TOOLS
   "Build the PhotometryTK tools." ON)

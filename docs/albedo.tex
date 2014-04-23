@@ -132,13 +132,21 @@ for generating image mosaics (see the parameter REFLECTANCE\_TYPE in
 section \ref{settings}). In that case, the DEM images and Sun/spacecraft positions are
 not required.
 
-\section{Using the albedo software and the output}
+\section{Compiling and running the albedo software}
+
+The albedo reconstruction software needs to fetched from GitHub, using
+the command:
+
+\begin{verbatim}
+  git clone https://github.com/NeoGeographyToolkit/PhotometryTK.git
+\end{verbatim}
+ 
+This will create a directory named \texttt{PhotometryTK}. The
+\texttt{INSTALL} file in that directory has instructions for how to
+compile and install the software and its pre-requisites.
 
 The albedo reconstruction software can be called by using the script
-{\it reconstruct.sh} in the directory PhotometryTK/src/tools. This
-script requires that Vision Workbench and PhotometryTK be complied (see
-the installation notes of these two packages for instructions). The
-script needs to be edited to specify the path to these packages.
+{\it reconstruct.sh} in the directory PhotometryTK/src/tools.
 
 The script is called as follows:
 

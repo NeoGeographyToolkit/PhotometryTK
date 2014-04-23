@@ -19,7 +19,9 @@
 # This script performs albedo reconstruction. It should be run as:
 # ./reconstruct.sh settingsFile labelStr
 # The results will go to albedo_$labelStr
-# See the documentation in PhotometryTK/docs
+# The script must be modified to set the variables:
+# PHOTOMETRY_TOOLKIT_PATH and VISION_WORKBENCH_PATH.
+# See the documentation in PhotometryTK/docs.
 
 if [ "$#" -lt 2 ]; then 
     echo Usage: $0 settingsFile labelStr
@@ -29,10 +31,17 @@ settingsFile=$1
 labelStr=$2
 
 # Path to executables
-PHOTOMETRY_TOOLKIT_PATH=$HOME/PhotometryTK
-VISION_WORKBENCH_PATH=$HOME/visionworkbench
+PHOTOMETRY_TOOLKIT_PATH=$HOME/PhotometryTK/build
+VISION_WORKBENCH_PATH=$HOME/visionworkbench/build
+
+# This is used in 'make check'
+if [ "$3" != "" ]; then PHOTOMETRY_TOOLKIT_PATH=$3; fi
+if [ "$4" != "" ]; then VISION_WORKBENCH_PATH=$4;   fi
+
+echo "vals are $3 $4"
+
 reconstruct="$PHOTOMETRY_TOOLKIT_PATH/src/tools/reconstruct"
-image2qtree="$VISION_WORKBENCH_PATH/src/vw/tools/image2qtree"
+image2qtree="$VISION_WORKBENCH_PATH/bin/image2qtree"
 
 # Output directory
 resDir=albedo_$labelStr

@@ -45,24 +45,27 @@ endif(ENABLE_RPATHS)
 include(AddPHOTK)
 set(Boost_USE_STATIC_LIBS   OFF)
 set(Boost_USE_MULTITHREADED ON )
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+# Need the values of VISIONWORKBENCH_ROOT and PHOTK_SOURCE_DIR for 'make check'
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_FILESYSTEM_VERSION=3 -DPHOTK_SOURCE_DIR=${PHOTK_SOURCE_DIR} -DVISIONWORKBENCH_ROOT=${VISIONWORKBENCH_ROOT}")
+
 find_package(Boost 1.50.0
-  COMPONENTS
-  program_options
-  system
-  filesystem
-  thread
-  )
+    COMPONENTS
+    program_options
+    system
+    filesystem
+    thread
+)
 find_package(VisionWorkbench REQUIRED
-  COMPONENTS
-  core
-  math
-  image
-  fileio
-  cartography
-  )
+    COMPONENTS
+    core
+    math
+    image
+    fileio
+    cartography
+)
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIRS})
 find_package(GooglePerfTools)
-find_package(Protobuf)
 photk_enable_testing()
 
 if (ENABLE_PROFILING AND GOOGLE_PERFTOOLS_FOUND)

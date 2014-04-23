@@ -78,6 +78,10 @@ protected:
   virtual void SetUp() {}
 };
 
+// Function for expansion of a pre-processor macro into a string.
+#define xstr(a) str(a)
+#define str(a) #a
+
 TEST_F( TestAlbedo, FullCycle ) {
 
   std::cout << std::endl;
@@ -92,27 +96,32 @@ TEST_F( TestAlbedo, FullCycle ) {
     "photometry_settings_1.txt", "albedo_gold_1",
     "photometry_settings_2.txt", "albedo_gold_2"
   };
+
+  std::string paths = xstr(PHOTK_SOURCE_DIR) + std::string(" ") + xstr(VISIONWORKBENCH_ROOT);
   
   for (int s = 0 ; s < sizeof(files)/sizeof(string); s++){
-    string cmd = "ln -s ../../../src/photk/tests/" + files[s] + " . > /dev/null 2>&1";
-    //std::cout << cmd << std::endl;
+    string cmd = std::string("rm -f ") + files[s] +
+      "; ln -s ../../../../src/photk/tests/" + files[s] + " .";
+    std::cout << cmd << std::endl;
     system(cmd.c_str());
   }
-  cmd = "ln -s ../../../src/tools/reconstruct.sh . > /dev/null 2>&1";
-  //std::cout << cmd << std::endl;
-  int flag = system(cmd.c_str());
+  cmd = "rm -f reconstruct.sh; ln -s ../../../../src/tools/reconstruct.sh .";
+  std::cout << cmd << std::endl;
+  system(cmd.c_str());
   
   // Run test 1
   std::cout << "\nRunning test 1" << std::endl;
-  cmd="./reconstruct.sh photometry_settings_1.txt test_1 > output1.txt";
+  system("echo Run directory is $(pwd)");
+  cmd="./reconstruct.sh photometry_settings_1.txt test_1 " + paths + " > output1.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
-  flag = compareDirsWithTol("albedo_gold_1", "albedo_test_1");
+  int flag = compareDirsWithTol("albedo_gold_1", "albedo_test_1");
   EXPECT_EQ(flag, 1);
   
   // Run test 2
   std::cout << "\nRunning test 2" << std::endl;
-  cmd="./reconstruct.sh photometry_settings_2.txt test_2 > output2.txt";
+  system("echo Run directory is $(pwd)");
+  cmd="./reconstruct.sh photometry_settings_2.txt test_2 " + paths + " > output2.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
   flag = compareDirsWithTol("albedo_gold_2", "albedo_test_2");

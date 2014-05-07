@@ -1256,19 +1256,19 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
   }
 
   if ( !fs::exists(settings.drgDir) ){
-    std::cerr << "ERROR: Directory " << settings.drgDir << " does not exist." << std::endl;
+    std::cerr << "ERROR: DRG directory " << settings.drgDir << " does not exist." << std::endl;
     exit(1);
   }
   if ( settings.reflectanceType != NO_REFL && !fs::exists(settings.demDir) ){
-    std::cerr << "ERROR: Directory " << settings.demDir << " does not exist." << std::endl;
+    std::cerr << "ERROR: DEM directory " << settings.demDir << " does not exist." << std::endl;
     exit(1);
   }
   if (settings.reflectanceType != NO_REFL && !fs::exists(settings.sunPosFile) ){
-    std::cerr << "ERROR: File " << settings.sunPosFile << " does not exist." << std::endl;
+    std::cerr << "ERROR: Sun position file " << settings.sunPosFile << " does not exist." << std::endl;
     exit(1);
   }
   if ( settings.reflectanceType != NO_REFL && !fs::exists(settings.spacecraftPosFile) ){
-    std::cerr << "ERROR: File " << settings.spacecraftPosFile << " does not exist." << std::endl;
+    std::cerr << "ERROR: Spacecraft position file " << settings.spacecraftPosFile << " does not exist." << std::endl;
     exit(1);
   }
   if (settings.tileSize <= 0.0){

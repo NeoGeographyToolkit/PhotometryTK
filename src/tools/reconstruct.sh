@@ -184,11 +184,13 @@ for ((i = 1; i <= $numIter; i++)); do
     if [ "$useSuperComp" -eq 1 ]; then
         currDir=$(pwd)
         echo $VALS | perl -pi -e "s#\s+#\n#g" | parallel -P $NUM_PROCESSES -u --sshloginfile $PBS_NODEFILE "cd $currDir; $run"
+        ans="$?"
     else
         xargs="xargs -n 1 -P $NUM_PROCESSES -I {} $run"
         echo $VALS | perl -pi -e "s#\s+#\n#g" | $xargs
+        ans="$?"
     fi
-
+    if [ "$ans" -ne 0 ]; then exit 1; fi
     echo end step $i at $(date)
     
 done # end all iterations

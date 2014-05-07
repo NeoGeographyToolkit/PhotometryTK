@@ -203,7 +203,7 @@ int main( int argc, char *argv[] ) {
 
   // A tile which will hold the georef info for all images and tiles
   std::string sampleTileFile = resDir + "/sampleTile.tif";
-  
+
   if (globalParams.initialSetup == 1) {
 
     // This block of code creates the list of images (imagesList). As such, it must be above
@@ -212,7 +212,8 @@ int main( int argc, char *argv[] ) {
     // Create the list of all DEM if not there yet.
     listDRGinBoxAndAllDEM(useReflectance,
                           allDRGIndex, allDEMIndex,
-                          globalParams.simulationBox, globalParams.drgDir, globalParams.demDir, imagesList
+                          globalParams.simulationBox, globalParams.drgDir,
+                          globalParams.demDir, imagesList
                           );
 
     vw_out( VerboseDebugMessage, "photometry" ) << "Initializing the albedo tiles ... ";

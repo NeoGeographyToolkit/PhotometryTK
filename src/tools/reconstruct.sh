@@ -38,10 +38,11 @@ VISION_WORKBENCH_PATH=$HOME/visionworkbench/build
 if [ "$3" != "" ]; then PHOTOMETRY_TOOLKIT_PATH=$3; fi
 if [ "$4" != "" ]; then VISION_WORKBENCH_PATH=$4;   fi
 
-echo "vals are $3 $4"
-
 reconstruct="$PHOTOMETRY_TOOLKIT_PATH/src/tools/reconstruct"
 image2qtree="$VISION_WORKBENCH_PATH/bin/image2qtree"
+
+echo reconstruct=$reconstruct
+echo image2qtree=$image2qtree
 
 # Output directory
 resDir=albedo_$labelStr

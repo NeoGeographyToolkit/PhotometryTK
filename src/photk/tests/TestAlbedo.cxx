@@ -97,7 +97,7 @@ TEST_F( TestAlbedo, FullCycle ) {
     "photometry_settings_2.txt", "albedo_gold_2"
   };
 
-  std::string paths = xstr(PHOTK_SOURCE_DIR) + std::string(" ") + xstr(VISIONWORKBENCH_ROOT);
+  std::string paths = xstr(PHOTK_SOURCE_DIR) + std::string("/build ") + xstr(VISIONWORKBENCH_ROOT);
   
   for (int s = 0 ; s < sizeof(files)/sizeof(string); s++){
     string cmd = std::string("rm -f ") + files[s] +
@@ -112,7 +112,7 @@ TEST_F( TestAlbedo, FullCycle ) {
   // Run test 1
   std::cout << "\nRunning test 1" << std::endl;
   system("echo Run directory is $(pwd)");
-  cmd="./reconstruct.sh photometry_settings_1.txt test_1 " + paths + " > output1.txt";
+  cmd="./reconstruct.sh photometry_settings_1.txt test_1 " + paths + " > output1.txt; cat output1.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
   int flag = compareDirsWithTol("albedo_gold_1", "albedo_test_1");
@@ -121,7 +121,7 @@ TEST_F( TestAlbedo, FullCycle ) {
   // Run test 2
   std::cout << "\nRunning test 2" << std::endl;
   system("echo Run directory is $(pwd)");
-  cmd="./reconstruct.sh photometry_settings_2.txt test_2 " + paths + " > output2.txt";
+  cmd="./reconstruct.sh photometry_settings_2.txt test_2 " + paths + " > output2.txt; cat output2.txt";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
   flag = compareDirsWithTol("albedo_gold_2", "albedo_test_2");

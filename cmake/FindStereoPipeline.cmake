@@ -38,7 +38,7 @@
 find_path(StereoPipeline_DIR
   NAMES  include/asp/Core.h
          lib/libaspCore.dylib
-  HINTS  ${StereoPipeline_INCLUDE_DIR}
+  HINTS  ${StereoPipeline_ROOT}
 )
 
 find_path(StereoPipeline_INCLUDE_DIR

@@ -15,7 +15,7 @@ Please follow those distribution's install guides for installation
 instructions.
 
 
-Installation Instruction
+Installation Instructions
 ==================================================
 
 Photometry TK uses the CMake build system. These instructions will
@@ -49,3 +49,26 @@ Running unit tests
 Photometry TK has some unit testing available to insure proper
 function. To operate them, change directory to your build directory.
   7. make check
+
+
+Installing and running SfS (shape-from-shading)
+==================================================
+
+The SfS program is src/tools/sfs.cc. It depends on ISIS. It can be
+compiled by invoking cmake from the build directory:
+
+cmake .. -DENABLE_SFS=TRUE <options as above> <ISIS options> 
+
+How to set the ISIS options is described in INSTALL.isis.
+
+Then type 'make'. Once the program is compiled, it can be run as
+follows:
+
+export ISISROOT=<your ISIS install dir>
+export ISIS3DATA=<your ISIS data dir>
+
+sfs image.cub DEM.tif 
+
+Sample datasets are in the data/ directory.
+
+

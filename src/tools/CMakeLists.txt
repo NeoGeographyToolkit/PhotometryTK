@@ -11,9 +11,14 @@ set(VISIONWORKBENCH_BASE_LIBRARIES
   )
 
 # Executables
-set(PHOTK_USED_LIBS PhotometryTK ${VISIONWORKBENCH_CARTOGRAPHY_LIBRARY} ${Boost_LIBRARIES})
+set(PHOTK_USED_LIBS PhotometryTK ${VISIONWORKBENCH_CARTOGRAPHY_LIBRARY} ${Boost_LIBRARIES} ${StereoPipeline_LIBRARIES})
 add_photk_tool(reconstruct reconstruct.cc)
 add_photk_tool(dem_mosaic dem_mosaic.cc)
+
+# The SfS tool. It depends on ISIS.
+if (ENABLE_SFS)
+   add_isis_tool(sfs sfs.cc)
+endif()
 
 # Scripts
 install( FILES reconstruct.sh

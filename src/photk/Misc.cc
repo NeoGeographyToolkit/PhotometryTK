@@ -1287,7 +1287,7 @@ int photometry::ReadSettingsFile(char *settings_filename, struct GlobalParams & 
   return 0;
 }
 
-void photometry::PrintGlobalParams(GlobalParams& settings){
+void photometry::PrintGlobalParams(GlobalParams const& settings){
 
 
   // Files/directories

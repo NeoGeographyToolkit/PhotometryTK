@@ -248,6 +248,8 @@ void photometry::computeReflectanceAtPixel(int x, int y,
   outputReflectance = 0.0;
   if (savePhaseAngle) phaseAngle = std::numeric_limits<double>::quiet_NaN();
 
+  if (x <= 0 || y <= 0) return;
+  
   Vector2 lonlat = DEMGeo.pixel_to_lonlat(Vector2(x, y));
   float   h      = DEMTile(x, y);
   if (h == noDEMDataValue) return;;

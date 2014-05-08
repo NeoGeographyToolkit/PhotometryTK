@@ -1,0 +1,53 @@
+This document describes how to install ISIS and its dependencies, and
+what options to pass to cmake to compile a program using ISIS.
+
+1. Get ISIS for your platform from 
+
+   http://isis.astrogeology.usgs.gov/documents/InstallGuide/
+ 
+   You may pass to rsync the following options to decrease the download time:
+   --exclude '*/*doc*' --exclude '*/*.png' --exclude '*/*.jpg' \
+    --exclude '*/*.html'
+
+2. For Linux only: 
+ - Compile and install patchelf 
+   http://releases.nixos.org/patchelf/patchelf-0.8/patchelf-0.8.tar.bz2
+ - Get Qt 4.8:
+   http://download.qt-project.org/official_releases/qt/4.8/4.8.6/qt-everywhere-opensource-src-4.8.6.tar.gz
+   Unpack and configure Qt. There is no need to compile it as we need
+   only the headers (ISIS includes the libraries proper).
+
+3. Install CSPICE:
+   wget ftp://naif.jpl.nasa.gov/pub/naif/toolkit//C/MacIntel_OSX_AppleC_64bit/packages/cspice.tar.Z
+   Unpack it. There is no need to compile it (as we need just the
+   headers). To please ISIS, do
+   
+   cd cspice; ln -s include naif
+
+4. Options to pass to cmake.
+
+If your ISIS and dependencies are installed in a standard system
+location, cmake may find them automatically. 
+
+If all these libraries are in a certain directory, with standard
+include, lib, and bin subdirectories, you can pass that directory to
+cmake as
+
+ -DISIS_ROOT:PATH=<your isis install dir>  
+
+If this still fails, you can set the paths to all dependenices
+individually, as follows.
+
+On MacOSX:
+
+ -DISIS_ROOT:PATH=<your isis install dir>      \
+ -DCSPICE_ROOT:PATH=<your cspice dir>
+
+On Linux:
+
+ -DISIS_ROOT:PATH=<your isis install dir>      \
+ -DCSPICE_ROOT:PATH=<your cspice dir>          \
+ -DPATCHELF:PATH=<path to your patchelf tool>  \
+ -DQT_ROOT:PATH=<path to your Qt installation>
+
+

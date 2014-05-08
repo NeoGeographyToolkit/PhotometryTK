@@ -58,7 +58,7 @@ namespace photometry {
 
 
   /// Erases a file suffix if one exists and returns the base string
-  static std::string prefix_from_filename(std::string const& filename) {
+  inline std::string prefix_from_filename(std::string const& filename) {
     std::string result = filename;
     int index = result.rfind(".");
     if (index != -1)
@@ -67,7 +67,7 @@ namespace photometry {
   }
 
   /// Erases a file suffix if one exists and returns the base string less3 characters
-  static std::string prefix_less3_from_filename(std::string const& filename) {
+  inline std::string prefix_less3_from_filename(std::string const& filename) {
     std::string result = filename;
     int index = result.rfind(".");
     if (index != -1)
@@ -76,7 +76,7 @@ namespace photometry {
   }
 
   /// Erases a file suffix if one exists and returns the base string less3 characters
-  static std::string suffix_from_filename(std::string const& filename) {
+  inline std::string suffix_from_filename(std::string const& filename) {
     std::string result = filename;
     int index = result.rfind("/");
     if (index != -1)
@@ -174,7 +174,7 @@ namespace photometry {
 
   int ReadSettingsFile(char *settings_filename, struct GlobalParams & settings);
 
-  void PrintGlobalParams(GlobalParams& settings);
+  void PrintGlobalParams(GlobalParams const& settings);
 
   bool readImagesFile(std::vector<ImageRecord>& images,
                       const std::string& imagesListName);

@@ -83,6 +83,14 @@ else()
   set(PHOTK_ENABLE_TCMALLOC OFF)
 endif()
 
+# The SfS tool. It depends on ISIS.
+if (ENABLE_SFS)
+    find_package(ISIS REQUIRED
+        COMPONENTS
+        isis3
+    )
+endif(ENABLE_SFS)
+    
 # Produce photk/config.h
 configure_file(
   ${PHOTK_SOURCE_DIR}/src/photk/config.h.in

@@ -67,8 +67,11 @@ follows:
 export ISISROOT=<your ISIS install dir>
 export ISIS3DATA=<your ISIS data dir>
 
-sfs image.cub DEM.tif 
+sfs image.cub DEM.tif metadata_dir num_iter
 
-Sample datasets are in the data/ directory.
+The metadata directory is expected to have files describing the sun
+and spacecraft positions.
 
-
+Sample datasets are included in PhotometryTK/src/photk/tests/. Doing
+'make check' will run this program (with just one iteration, normally
+around 20-100 are required).

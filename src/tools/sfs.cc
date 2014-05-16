@@ -396,7 +396,7 @@ public:
     // Cut the gaussian exp(-sigma*x^2) where its value is 'scale'.
     double scale = 0.001;
     m_search_dist = (int)ceil(sqrt(-log(scale)/blur_sigma));
-    std::cout << "Search distance is " << m_search_dist << std::endl;
+    std::cout << "Blur search distance is " << m_search_dist << std::endl;
 
     // The gaussian kernel
     int h = m_search_dist;
@@ -524,25 +524,79 @@ void calc_image_and_reflectance_at_pt(ImageView<PixelGray<float> > const& DEM,
   
 }
 
-template<class ImageT>
+void dump_iter(int iter,
+               double a, double b,
+               GeoReference const& DEMGeo,
+               ImageView<PixelMask<float> > const& I,
+               ImageView<PixelMask<PixelGray<float> > > const& R
+               ){
+
+  // The image intensity at every DEM point (I), and the reflectance
+  // at every DEM point (R) are floating-point quantities.  Towards
+  // the end of optimization we will have I is about a*R + b.
+
+  // Here, we will clamp I to [mean(I) - sigma*stdev(I), mean(I) + sigma*stddev(I)],
+  // and cast to int. We will clamp a*R + b to the same interval for easy comparison.
+
+  double imgmean, imgstdev;
+  compute_image_stats(I, imgmean, imgstdev);
+  
+  double sigma = 5.0, mn = imgmean - sigma*imgstdev, mx = imgmean + sigma*imgstdev;
+  ostringstream os; os << "_iter" << iter << "_int.tif";
+  float nodata = 0;
+  ImageView<uint8> V(I.cols(), I.rows());
+
+  for (int col = 0; col < V.cols(); col++){
+    for (int row = 0; row < V.rows(); row++){
+      int v;
+      if (!is_valid(I(col, row)))
+        v = 0;
+      else
+        v = (int)round(255*(I(col, row).child() - mn)/(mx - mn));
+      v = std::max(0, v);
+      v = std::min(255, v);
+      V(col, row) = uint8(v);
+    }
+  }
+  write_image_nodata("demimg" + os.str(), V, DEMGeo, nodata);
+
+  for (int col = 0; col < V.cols(); col++){
+    for (int row = 0; row < V.rows(); row++){
+      int v;
+      if (!is_valid(R(col, row)))
+        v = 0;
+      else
+        v = (int)round(255*((a*R(col, row).child()+b) - mn)/(mx - mn));
+      v = std::max(0, v);
+      v = std::min(255, v);
+      V(col, row) = uint8(v);
+    }
+  }
+  write_image_nodata("demrefl" + os.str(), V, DEMGeo, nodata);
+  
+  
+}
+
 double calc_cost_fun(ImageView<PixelGray<float> >& DEM,
                      GeoReference const& DEMGeo,
                      float DEMnodata,
                      ModelParams const& img_params,
                      GlobalParams const& globalParams,
                      IsisInterfaceFrame const& cam,
-                     ImageT & img,
+                     ImageView<float> & img,
                      double a, double b,
-                     ImageView<PixelMask<float> > & camimg,
+                     ImageView<PixelMask<float> > & I,
                      ImageView<PixelMask<PixelGray<float> > > & R
                      ){
 
-  camimg.set_size(DEM.cols(), DEM.rows());
+  // Compute the cost function.
+  
+  I.set_size(DEM.cols(), DEM.rows());
   R.set_size(DEM.cols(), DEM.rows());
   for (int col = 0; col < DEM.cols(); col++){
     for (int row = 0; row < DEM.rows(); row++){
       R(col, row).invalidate();
-      camimg(col, row).invalidate();
+      I(col, row).invalidate();
     }
   }
   
@@ -573,8 +627,8 @@ double calc_cost_fun(ImageView<PixelGray<float> >& DEM,
             continue;
           }
           if (c == col && r == row){
-            camimg(c, r) = imgval;
-            R(c, r) = a*refl + b;
+            I(c, r) = imgval;
+            R(c, r) = refl; //a*refl + b;
           }
           
           double v = imgval.child() - a*refl.child() - b;
@@ -591,18 +645,20 @@ double calc_cost_fun(ImageView<PixelGray<float> >& DEM,
   return cost;
 }
 
-template<class ImageT>
 void calc_update(ImageView<PixelGray<float> >& DEM,
-                   GeoReference const& DEMGeo,
-                   float DEMnodata,
-                   ModelParams const& img_params,
-                   GlobalParams const& globalParams,
-                   IsisInterfaceFrame const& cam,
-                   ImageT & img,
-                   double a, double b, double deltah,
-                   ImageView<PixelGray<float> > & update
-                   ){
-
+                 GeoReference const& DEMGeo,
+                 float DEMnodata,
+                 ModelParams const& img_params,
+                 GlobalParams const& globalParams,
+                 IsisInterfaceFrame const& cam,
+                 ImageView<float> & img,
+                 double a, double b, double deltah,
+                 ImageView<PixelGray<float> > & update
+                 ){
+  
+  // Calculate the update via gradient descent (the gradient is
+  // computed numerically).
+  
   update.set_size(DEM.cols(), DEM.rows());
   for (int col = 0; col < DEM.cols(); col++){
     for (int row = 0; row < DEM.rows(); row++){
@@ -622,21 +678,21 @@ void calc_update(ImageView<PixelGray<float> >& DEM,
       for (int c = col-1; c <= col+1; c++){
         for (int r = row-1; r <= row+1; r++){
           
-            PixelMask<float> imgval;
-            PixelMask<PixelGray<float> > refl;
-            calc_image_and_reflectance_at_pt(DEM, img,  
-                                             DEMGeo, DEMnodata,  
-                                             img_params, globalParams,  
-                                             c, r, cam,  
-                                             imgval, refl
-                                             );
-            
-            if (!is_valid(imgval) || !is_valid(refl)){
-              bad_value = true;
-              continue;
-            }
-            double v = imgval.child() - a*refl.child() - b;
-            cost += v*v;
+          PixelMask<float> imgval;
+          PixelMask<PixelGray<float> > refl;
+          calc_image_and_reflectance_at_pt(DEM, img,  
+                                           DEMGeo, DEMnodata,  
+                                           img_params, globalParams,  
+                                           c, r, cam,  
+                                           imgval, refl
+                                           );
+          
+          if (!is_valid(imgval) || !is_valid(refl)){
+            bad_value = true;
+            continue;
+          }
+          double v = imgval.child() - a*refl.child() - b;
+          cost += v*v;
         }
       }
       
@@ -681,7 +737,8 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
                                 GeoReference const& DEMGeo,
                                 float DEMnodata,
                                 ModelParams const& img_params,
-                                GlobalParams const& globalParams
+                                GlobalParams const& globalParams,
+                                int num_iter
                                 ){
 
   std::string imgfile = img_params.inputFilename;
@@ -690,190 +747,126 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
   boost::shared_ptr<DiskImageResource>
     img_rsrc( DiskImageResource::open(imgfile));
   ImageView<float> img = copy(DiskImageView<float>( img_rsrc ));
+
+  // Calculate a and b in the camera transfer function model
+  // I = a*R + b.
+  double a = 1.0, b = 0.0;
+  ImageView<PixelMask<float> > I;
+  ImageView<PixelMask<PixelGray<float> > > R;
+  calc_cost_fun(DEM, DEMGeo, DEMnodata,  
+                img_params,  globalParams, cam, img, a, b,
+                I, R
+                );
+  double imgmean, imgstdev, refmean, refstdev;
+  compute_image_stats(I, imgmean, imgstdev);
+  compute_image_stats(R, refmean, refstdev);
+  a = imgstdev/refstdev;
+  b = imgmean - a*refmean;
   
-  ImageView<PixelMask<float> > camimg(DEM.cols(), DEM.rows());
-  ImageView<PixelMask<PixelGray<float> > > R(DEM.cols(), DEM.rows());
-    for (int col = 0; col < DEM.cols(); col++){
-      for (int row = 0; row < DEM.rows(); row++){
-        calc_image_and_reflectance_at_pt(DEM, img,  
-                                         DEMGeo, DEMnodata,  
-                                         img_params, globalParams,  
-                                         col, row, cam,  
-                                         camimg(col, row), R(col, row)
-                                         );
-      }
-    }
+  // The cost fun is sum (I-a*R-b)^2. Each time the height of a DEM
+  // point is changed, I and R change only at that point and its
+  // immediate neighbors.
 
-    double imgmean, imgstdev, refmean, refstdev;
-    compute_image_stats(camimg, imgmean, imgstdev);
-    compute_image_stats(R, refmean, refstdev);
-    double a = imgstdev/refstdev;
-    double b = imgmean - a*refmean;
-
-    std::cout << "image mean and stdev: " << imgmean << ' ' << imgstdev
-              << std::endl;
-    std::cout << "ref mean and stddev: " << refmean << ' ' << refstdev
-              << std::endl;
-
-
-    // The cost fun is sum (I-a*R-b)^2. Each time the height of a DEM
-    // point is changed, I and R change only at that point and its
-    // immediate neighbors.
-
-    // Will vary height by this much to compute the numerical gradient
-    double max_dem = calc_max_abs(DEM, DEMnodata);
-    double deltah = 0.00001*max_dem;
-    std::cout << "deltah is " << deltah << std::endl;
+  // Will vary height by this much to compute the numerical gradient
+  double max_dem = calc_max_abs(DEM, DEMnodata);
+  double deltah = 0.00001*max_dem;
+  std::cout << "deltah is " << deltah << std::endl;
     
-    // Initialize the update
-    ImageView<PixelGray<float> > update;
+  // Initialize the update
+  ImageView<PixelGray<float> > update;
+  calc_update(DEM, DEMGeo, DEMnodata,  img_params,  
+              globalParams, cam, img, a, b, deltah, update
+              );
+
+  // Determine how to scale the updates, so they are not too big or
+  // too small.
+  double max_up  = calc_max_abs(update, 0.0);
+  double mn, mx;
+  calc_min_max(DEM, DEMnodata, mn, mx);
+  double pct = 0.05;
+  double factor = pct*(mx - mn)/max_up;
+  if (factor == 0){
+    // Handle the case when the input DEM is constant
+    factor = 2.0/max_up; // 2 meter update
+  }
+    
+  double cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
+                              img_params,  globalParams, cam, img,  a, b,
+                              I, R
+                              );
+
+  vector<double> Cost;
+  Cost.push_back(cost);
+  ofstream cs("cost.txt");
+  cs << cost << std::endl;
+
+  dump_iter(0, a, b, DEMGeo, I, R);
+
+  for (int i = 1; i <= num_iter; i++){
+      
+    std::cout << "iteration: " << i << std::endl;
+
+    double sigma = 1.5;
+    ImageView<PixelGray<float> > blurredDEM  
+      = apply_mask(blur_dem
+                   (create_mask(DEM, DEMnodata), sigma),
+                   DEMnodata);
+    DEM = copy(blurredDEM);
+      
+    // Cost after blur
+    cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
+                         img_params,  globalParams, cam, img, a, b,
+                         I, R
+                         );
+    Cost.push_back(cost);
+    cs << cost << std::endl;
+      
     calc_update(DEM, DEMGeo, DEMnodata,  img_params,  
                 globalParams, cam, img, a, b, deltah, update
                 );
-    
-    double max_up  = calc_max_abs(update, 0.0);
-    std::cout << "max DEM and update: " << max_dem << ' ' << max_up << std::endl;
 
-    double mn, mx;
-    calc_min_max(DEM, DEMnodata, mn, mx);
-    std::cout << "min and max of DEM " << mn << ' ' << mx << ' ' << mx-mn << std::endl;
-
-    double pct = 0.05;
-    double factor = pct*(mx - mn)/max_up;
-    if (factor == 0){
-      // Handle the case when the input DEM is constant
-      factor = 2.0/max_up; // 2 meter update
+    double max_up = 0.0;
+    for (int col = 1; col < DEM.cols()-1; col++){
+      for (int row = 1; row < DEM.rows()-1; row++){
+        if (DEM(col, row) == DEMnodata) continue;
+        double u = factor*update(col, row);
+        DEM(col, row) -= u;
+        max_up = std::max(max_up, u);
+      }
     }
-    
-    double cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                                img_params,  globalParams, cam, img,  a, b,
-                                camimg, R
-                                );
 
-    float outDataVal = -1e+7;
-    
-    vector<double> Cost;
+    std::cout << "max update is " << max_up << std::endl;
+      
+    // Cost after update
+    cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
+                         img_params,  globalParams, cam, img,  a, b,
+                         I, R
+                         );
     Cost.push_back(cost);
-    ofstream cs("cost.txt");
     cs << cost << std::endl;
 
-    // Must put here 100 iterations!
-    for (int i = 0; i < 1; i++){
-
-      
-      std::cout << "iteration: " << i << std::endl;
-      ostringstream os; os << "v15iter" << i << ".tif";
-
-#if 0
-      // Detailed debug info
-      write_image_nodata("DEM" + os.str(),  
-                         DEM, DEMGeo, DEMnodata);
-
-      write_image_nodata("img" + os.str(),
-                         apply_mask(camimg, outDataVal), DEMGeo, outDataVal);
+    if (i%10 == 0) dump_iter(i, a, b, DEMGeo, I, R);
     
-      write_image_nodata("refl" + os.str(),
-                         apply_mask(R, outDataVal), DEMGeo, outDataVal);
-#endif
-      
+  }
 
-      double sigma = 1.5;
-      ImageView<PixelGray<float> > blurredDEM  
-        = apply_mask(blur_dem
-                     (create_mask(DEM, DEMnodata), sigma),
-                     DEMnodata);
-      DEM = copy(blurredDEM);
-      
-      // Cost after blur
-      cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                           img_params,  globalParams, cam, img,  a, b,
-                           camimg, R
-                           );
-      Cost.push_back(cost);
-      cs << cost << std::endl;
-      
-      calc_update(DEM, DEMGeo, DEMnodata,  img_params,  
-                  globalParams, cam, img, a, b, deltah, update
-                  );
+  cs.close();
 
-      double max_up = 0.0;
-      for (int col = 1; col < DEM.cols()-1; col++){
-        for (int row = 1; row < DEM.rows()-1; row++){
-          if (DEM(col, row) == DEMnodata) continue;
-          double u = factor*update(col, row);
-          DEM(col, row) -= u;
-          max_up = std::max(max_up, u);
-        }
-      }
-
-      std::cout << "max update is " << max_up << std::endl;
-      
-      // Cost after update
-      cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                           img_params,  globalParams, cam, img,  a, b,
-                           camimg, R
-                           );
-      Cost.push_back(cost);
-      cs << cost << std::endl;
-      
-    }
-
-    cs.close();
-    
-    //     std::string demoutfile = "updateddem.tif";
-    //     write_image_nodata(demoutfile,  
-    //                        DEM, DEMGeo, DEMnodata);
-
-    
-    
-    //     std::cout << "cost after blur: " << costc << std::endl;
-    
-    //     std::string blurreddemoutfile = "blurred.tif";
-    //     write_image_nodata(blurreddemoutfile,  
-    //                        blurredDEM, DEMGeo, DEMnodata);
-    
-    
-    std::string camimgfile = "camout.tif";
-    write_image_nodata(camimgfile,  
-                       apply_mask(camimg, outDataVal), DEMGeo, outDataVal);
-    
-    std::string reflectanceFile = "Reflectance.tif";
-    write_image_nodata(reflectanceFile,  
-                       apply_mask(R, outDataVal), DEMGeo, outDataVal);
-
-    std::string updateFile = "Update.tif";
-    write_image_nodata(updateFile,  
-                       update, DEMGeo, -1e+20);
-
-    for (int row = 0; row < (int)DEM.rows(); row++){
-      for (int col = 0; col < (int)DEM.cols(); col++){
-        R(col, row) = a*R(col, row) + b;
-      }
-    }
-
-    compute_image_stats(R, refmean, refstdev);
-    std::cout << "ref mean and stddev: " << refmean << ' ' << refstdev
-              << std::endl;
-
-
+  dump_iter(num_iter, a, b, DEMGeo, I, R);
 }
 
 int main( int argc, char *argv[] ) {
 
-  // Do shape-from shading. Pass as input an Apollo cub file and
-  // an initial guess DEM. We assume that we have sun and
-  // spacecraft position for the cub file as seen below.
+  // Do shape-from shading. See the INSTALL file about how to compile
+  // and run this program.
 
-  // See the INSTALL file about how to compile and run this program.
-
-  // Important: The step size below needs tweaking for best performance.
-  // Ideally it would be adaptive, growing or shrinking depending
-  // on how the cost function is decreasing.
+  // Important: The step size for gradient descent needs tweaking for
+  // best performance.  Ideally it would be adaptive, growing or
+  // shrinking depending on how the cost function is decreasing.
   
   // To do: Remove the unneeded initial blur
   
-  if (argc < 3){
-    std::cerr << "Usage: " << argv[0] << " image.cub DEM.tif" << std::endl;
+  if (argc < 5){
+    std::cerr << "Usage: " << argv[0] << " image.cub DEM.tif metadata_dir num_iter" << std::endl;
     exit(1);
   }
   
@@ -881,7 +874,10 @@ int main( int argc, char *argv[] ) {
   images.push_back(argv[1]);
   
   std::string DEMFile = argv[2];
-  DiskImageView<PixelGray<float> > DEMTile(DEMFile);
+  std::string meta_dir = argv[3];
+  int num_iter = atoi(argv[4]);
+  
+  ImageView<PixelGray<float> > DEMTile = copy(DiskImageView<PixelGray<float> >(DEMFile));
   GeoReference DEMGeo;
   read_georeference(DEMGeo, DEMFile);
   float DEMnodata = -32768;
@@ -890,8 +886,8 @@ int main( int argc, char *argv[] ) {
   }
 
   GlobalParams globalParams;
-  globalParams.sunPosFile = "meta/sunpos.txt";
-  globalParams.spacecraftPosFile = "meta/spacecraftpos.txt";
+  globalParams.sunPosFile = meta_dir + "/sunpos.txt";
+  globalParams.spacecraftPosFile = meta_dir + "/spacecraftpos.txt";
   globalParams.reflectanceType = LUNAR_LAMBERT;
   globalParams.phaseCoeffC1    = 1.383488;
   globalParams.phaseCoeffC2    = 0.501149;
@@ -922,7 +918,7 @@ int main( int argc, char *argv[] ) {
     }
     // Go from kilometers to meters
     modelParamsArray[k].sunPosition = 1000*sunPositions[prefix];
-    std::cout << "sun: " <<  modelParamsArray[k].inputFilename
+    std::cout << "sun position: " <<  modelParamsArray[k].inputFilename
               << ' ' <<  modelParamsArray[k].sunPosition << std::endl;
 
     if (spacecraftPositions.find(prefix) == spacecraftPositions.end()){
@@ -932,38 +928,24 @@ int main( int argc, char *argv[] ) {
     }
     // Go from kilometers to meters
     modelParamsArray[k].spacecraftPosition = 1000*spacecraftPositions[prefix];
-    std::cout << "spacecraft: " <<  modelParamsArray[k].inputFilename
+    std::cout << "spacecraft position: " <<  modelParamsArray[k].inputFilename
               << ' ' <<  modelParamsArray[k].spacecraftPosition << std::endl;
   }
   
-
-  double sigma = 0.1; // 0.7; //0.1;
-  ImageView<PixelGray<float> > bDEMTile
-    = apply_mask(blur_dem
-                 (create_mask(DEMTile, DEMnodata), sigma),
-                 DEMnodata);
-
-  double mean, stdev;
-  compute_image_stats(create_mask(DEMTile, DEMnodata), mean, stdev);
-  std::cout << "mean and stdev is " << mean << ' ' << stdev << std::endl;
-
 #if 0
   // If to start with a constant initial guess
-  for (int col = 0; col < bDEMTile.cols(); col++){
-    for (int row = 0; row < bDEMTile.rows(); row++){
-      bDEMTile(col, row) = mean;
+  for (int col = 0; col < DEMTile.cols(); col++){
+    for (int row = 0; row < DEMTile.rows(); row++){
+      DEMTile(col, row) = mean;
     }
   }
 #endif
   
-  std::string demoutfile = "bdemout.tif";
-  write_image_nodata(demoutfile,  
-                     bDEMTile, DEMGeo, DEMnodata);
-
-  calc_image_and_reflectance(bDEMTile, DEMGeo,  
+  calc_image_and_reflectance(DEMTile, DEMGeo,  
                              DEMnodata,  
                              modelParamsArray[0],  
-                             globalParams
+                             globalParams,
+                             num_iter
                              );
   return 0;
 }

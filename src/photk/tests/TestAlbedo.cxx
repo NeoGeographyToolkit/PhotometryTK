@@ -28,12 +28,29 @@ using namespace vw;
 using namespace photometry;
 using namespace std;
 
-bool compareDirsWithTol(string dir1, string dir2){
+template<class ImageT>
+bool compareFilesWithTol(string file1, string file2, int tol){
+  // Compare if two uint8 tif files have their pixels within tol of each other.
+  std::cout << "Comparing files: " << file1 << ' ' << file2 << std::endl;
+  DiskImageView<ImageT>  img1(file1);
+  DiskImageView<ImageT>  img2(file2);
+  if (img1.rows() != img2.rows() || img1.cols() != img2.cols()){
+    std::cout << "The following images have different sizes: " << file1  << ' ' << file2 << std::endl;
+    return false;
+  }
+  
+  for (int k = 0 ; k < img1.rows(); ++k) {
+    for (int l = 0; l < img1.cols(); ++l) {
+      if ( abs( (double)img1(l, k) - (double)img2(l, k) ) > tol ) return false;
+    }
+  }
+  return true;
+}
+
+bool compareDirsWithTol(string dir1, string dir2, int tol){
 
   // Given two output directories of running albedo, see if the albedo tiles
   // in those directories are similar enough
-  
-  int tol = 2; // image values go from 0 to 255, use 2 as the tolerance
   
   vector<string> tifsInDir;
   listTifsInDir(dir1 + "/albedo", tifsInDir);
@@ -54,19 +71,8 @@ bool compareDirsWithTol(string dir1, string dir2){
       return false;
     }
 
-    DiskImageView<PixelMask<PixelGray<uint8> > >  img1(file1);
-    DiskImageView<PixelMask<PixelGray<uint8> > >  img2(file2);
-    if (img1.rows() != img2.rows() || img1.cols() != img2.cols()){
-      std::cout << "The following images have different sizes: " << file1  << ' ' << file2 << std::endl;
-      return false;
-    }
-
-    for (int k = 0 ; k < img1.rows(); ++k) {
-      for (int l = 0; l < img1.cols(); ++l) {
-        if ( abs( (double)img1(l, k) - (double)img2(l, k) ) > tol ) return false;
-      }
-    }
-    
+    bool flag = compareFilesWithTol< PixelMask<PixelGray<uint8> > >(file1, file2, tol);
+    if (!flag) return false;
   }
 
   return true;
@@ -94,9 +100,13 @@ TEST_F( TestAlbedo, FullCycle ) {
     "DIM_input_1280mpp_masked", "DIM_input_2560mpp",
     "DEM_tiles_sub64",
     "photometry_settings_1.txt", "albedo_gold_1",
-    "photometry_settings_2.txt", "albedo_gold_2"
+    "photometry_settings_2.txt", "albedo_gold_2",
+    "AS15-M-1134.lev1.cub", "apollo-DEM.tif",
+    "demimg_iter1_int_gold.tif", "demrefl_iter1_int_gold.tif"
   };
 
+  int tol = 2; // image values go from 0 to 255, use 2 as the tolerance
+  
   std::string paths = xstr(PHOTK_SOURCE_DIR) + std::string("/build ") + xstr(VISIONWORKBENCH_ROOT);
   
   for (int s = 0 ; s < sizeof(files)/sizeof(string); s++){
@@ -110,21 +120,48 @@ TEST_F( TestAlbedo, FullCycle ) {
   system(cmd.c_str());
   
   // Run test 1
-  std::cout << "\nRunning test 1" << std::endl;
+  std::cout << "\nRunning albedo test 1" << std::endl;
   system("echo Run directory is $(pwd)");
   cmd="./reconstruct.sh photometry_settings_1.txt test_1 " + paths + " > output1.txt 2>&1";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
-  int flag = compareDirsWithTol("albedo_gold_1", "albedo_test_1");
+  int flag = compareDirsWithTol("albedo_gold_1", "albedo_test_1", tol);
   EXPECT_EQ(flag, 1);
   
   // Run test 2
-  std::cout << "\nRunning test 2" << std::endl;
+  std::cout << "\nRunning albedo test 2" << std::endl;
   system("echo Run directory is $(pwd)");
   cmd="./reconstruct.sh photometry_settings_2.txt test_2 " + paths + " > output2.txt 2>&1";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
-  flag = compareDirsWithTol("albedo_gold_2", "albedo_test_2");
+  flag = compareDirsWithTol("albedo_gold_2", "albedo_test_2", tol);
   EXPECT_EQ(flag, 1);
+
+#ifdef ENABLE_SFS
+  
+  std::cout << "\nRunning SfS test" << std::endl;
+  system("echo Run directory is $(pwd)");
+
+  if (!getenv("ISISROOT")){
+    std::cerr << "Must set ISISROOT before running SFS" << std::endl;
+    EXPECT_EQ(1, 0);
+  }
+  if (!getenv("ISIS3DATA")){
+    std::cerr << "Must set ISIS3DATA before running SFS" << std::endl;
+    EXPECT_EQ(1, 0);
+  }
+  
+  cmd = xstr(PHOTK_SOURCE_DIR) + std::string("/build/src/tools/sfs AS15-M-1134.lev1.cub apollo-DEM.tif meta 1");
+  std::cout << cmd << std::endl;
+  system(cmd.c_str());
+
+  flag = compareFilesWithTol<uint8>("demimg_iter1_int.tif",  "demimg_iter1_int_gold.tif", tol);
+  EXPECT_EQ(flag, 1);
+  
+  flag = compareFilesWithTol<uint8>("demrefl_iter1_int.tif", "demrefl_iter1_int_gold.tif", tol);
+  EXPECT_EQ(flag, 1);
+  
+#endif
+  
 }
 

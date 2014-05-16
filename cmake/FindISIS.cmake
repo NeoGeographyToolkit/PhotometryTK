@@ -82,7 +82,16 @@ if ("${CSPICE_ROOT}" STREQUAL "")
 endif()
 message(STATUS "CSPICE_ROOT is ${CSPICE_ROOT}")
 
-if (NOT APPLE)
+if (APPLE)
+    # Search for the ISIS SetRunTimePath
+    set(SRTP "${ISIS_ROOT}/scripts/SetRunTimePath")
+  if (EXISTS ${SRTP})
+    message(STATUS "Found: ${SRTP}")
+  else()
+    message(SEND_ERROR "Could not find: ${SRTP}")
+  endif()
+    
+else()
 
   # Search for patchelf
   get_filename_component(PATCHELF_GUESS_DIR "${PATCHELF}" PATH)
@@ -170,7 +179,7 @@ macro(edit_tool_paths name)
     add_custom_command(
         TARGET ${name}
         POST_BUILD
-        COMMAND ${ISIS_ROOT}/scripts/SetRunTimePath --bins --libmap=${ISIS_ROOT}/scripts/isis_bins_paths.lis --liblog=${ISIS_ROOT}/scripts/DarwinLibs.lis --relocdir=${relocdir} --errlog=DarwinErrors.lis ${name}
+        COMMAND ${SRTP} --bins --libmap=${ISIS_ROOT}/scripts/isis_bins_paths.lis --liblog=${ISIS_ROOT}/scripts/DarwinLibs.lis --relocdir=${relocdir} --errlog=DarwinErrors.lis ${name}
         COMMENT "Editing the run-time paths"
         VERBATIM
     )

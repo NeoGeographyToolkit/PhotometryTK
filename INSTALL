@@ -27,11 +27,13 @@ setting configuration options is easier with the 'ccmake' tool.
   3. cd build
 cmake .. -DVISIONWORKBENCH_ROOT:PATH=${YOUR VW INSTALL DIR}   \
          -DBOOST_ROOT:PATH=${YOUR BOOST INSTALL DIR}          \
-         -DPROTOBUF_ROOT:PATH=${YOUR PROTOBUF INSTALL DIR}     
+         -DPROTOBUF_ROOT:PATH=${YOUR PROTOBUF INSTALL DIR}    \
+		 -DENABLE_RPATHS:BOOL=ON
 
-Here are some additional options you can set in the cmake call:
-  *  Use RPATHs in resulting libraries
-              -DENABLE_RPATHS:BOOL=ON
+The last option is only necessary to make the executable find
+its libraries after doing 'make install'.
+
+Here is an additional options you can set in the cmake call:
   *  Set the installation directory for PhotometryTK
               -DCMAKE_INSTALL_PREFIX:PATH=${YOUR INSTALLATION DIR}
 

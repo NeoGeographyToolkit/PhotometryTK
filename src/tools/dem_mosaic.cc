@@ -34,8 +34,6 @@
 // individual tiles may need to be run on separate machines.
 
 // To do:
-// Deal with the protobuf dependency in the build system.
-// Fix cmake to build in build/ and not in base dir.
 // Add unit tests.
 
 #define USE_GRASSFIRE 1

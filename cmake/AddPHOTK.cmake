@@ -28,10 +28,10 @@ endmacro(add_photk_tool name)
 
 function(photk_enable_testing)
   set(GTEST_DIR ${CMAKE_SOURCE_DIR}/thirdparty/gtest)
+  include_directories(${GTEST_DIR}/include)
   include_directories(${Boost_INCLUDE_DIRS})
   include_directories(${VISIONWORKBENCH_INCLUDE_DIRS})
   include_directories(${PROTOBUF_INCLUDE_DIRS})
-  include_directories(${GTEST_DIR}/include)
   add_library(gtest SHARED EXCLUDE_FROM_ALL
     ${GTEST_DIR}/src/gtest-all.cc
     ${CMAKE_SOURCE_DIR}/src/test/test_main.cc

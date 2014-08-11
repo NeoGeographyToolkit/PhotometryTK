@@ -142,16 +142,21 @@ TEST_F( TestAlbedo, FullCycle ) {
   std::cout << "\nRunning SfS test" << std::endl;
   system("echo Run directory is $(pwd)");
 
-  if (!getenv("ISISROOT")){
-    std::cerr << "Must set ISISROOT before running SFS" << std::endl;
-    EXPECT_EQ(1, 0);
-  }
   if (!getenv("ISIS3DATA")){
     std::cerr << "Must set ISIS3DATA before running SFS" << std::endl;
     EXPECT_EQ(1, 0);
   }
-  
-  cmd = xstr(PHOTK_SOURCE_DIR) + std::string("/build/src/tools/sfs AS15-M-1134.lev1.cub apollo-DEM.tif meta 1");
+
+  std::string cube = "AS15-M-1134.lev1.cub";
+
+  cmd = std::string("export ISISROOT=") + xstr(ISIS_ROOT) + "; " + xstr(ISIS_ROOT)
+    + "/bin/spiceinit from = " + cube;
+  std::cout << cmd << std::endl;
+  system(cmd.c_str());
+
+  cmd = std::string("export ISISROOT=") + xstr(ISIS_ROOT) + "; "
+    + xstr(PHOTK_SOURCE_DIR) + std::string("/build/src/tools/sfs ") + cube
+    + " apollo-DEM.tif meta 1";
   std::cout << cmd << std::endl;
   system(cmd.c_str());
 

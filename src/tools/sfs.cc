@@ -58,6 +58,9 @@ namespace fs = boost::filesystem;
 #include "Target.h"
 #include "CameraDistortionMap.h"
 #include "CameraFocalPlaneMap.h"
+#include "SurfacePoint.h"
+#include "Latitude.h"
+#include "Longitude.h"
 
 using namespace vw;
 using namespace vw::math;
@@ -220,6 +223,7 @@ class IsisInterfaceFrame : public IsisInterface {
   
 public:
   IsisInterfaceFrame( string const& filename );
+  virtual ~IsisInterfaceFrame(){}
   
   virtual string type()  { return "Frame"; }
   
@@ -244,6 +248,38 @@ protected:
   
   vector<double> m_center;
 };
+
+// ISIS linescan camera class
+class IsisInterfaceLineScan : public IsisInterface {
+
+public:
+  IsisInterfaceLineScan( std::string const& filename );
+
+  virtual ~IsisInterfaceLineScan() {}
+
+  virtual std::string type()  { return "LineScan"; }
+
+  // Standard Methods
+  //-------------------------------------------------
+
+  // Note: The smallest pixel is (0, 0), not (1, 1)!
+  virtual vector<double>
+  point_to_pixel( vector<double> const& point ) const;
+  virtual vector<double>
+  pixel_to_vector( vector<double> const& pix ) const;
+  virtual vector<double>
+  camera_center() const;
+
+protected:
+
+  // Custom Variables
+  Isis::CameraDistortionMap *m_distortmap;
+  Isis::CameraFocalPlaneMap *m_focalmap;
+  Isis::CameraDetectorMap   *m_detectmap;
+  mutable Isis::AlphaCube   m_alphacube; // Doesn't use const
+};
+
+// IsisInterface base class implementation
 
 IsisInterface::IsisInterface( string const& file ) {
   // Opening labels and camera
@@ -288,11 +324,9 @@ IsisInterface* IsisInterface::open( string const& filename ) {
     // Linescan Camera
     if ( camera->HasProjection() ){
       throw string("Don't support Projected Linescan Isis Camera Type at this moment");
-      //result = new IsisInterfaceMapLineScan( filename );
     }
     else{
-      throw string("Don't support Linescan Isis Camera Type at this moment");
-      //result = new IsisInterfaceLineScan( filename );
+      result = new IsisInterfaceLineScan( filename );
     }
     break;
   default:
@@ -300,6 +334,8 @@ IsisInterface* IsisInterface::open( string const& filename ) {
   }
   return result;
 }
+
+// IsisInterfaceFrame class implementation
 
 IsisInterfaceFrame::IsisInterfaceFrame( string const& filename ) :
   IsisInterface(filename), m_alphacube( *m_cube ) {
@@ -355,6 +391,7 @@ IsisInterfaceFrame::pixel_to_vector( vector<double> const& px ) const {
                            m_detectmap->DetectorLine() );
   m_distortmap->SetFocalPlane( m_focalmap->FocalPlaneX(),
                                m_focalmap->FocalPlaneY() );
+
   vector<double> look(3);
   look[0] = m_distortmap->UndistortedFocalPlaneX();
   look[1] = m_distortmap->UndistortedFocalPlaneY();
@@ -363,11 +400,75 @@ IsisInterfaceFrame::pixel_to_vector( vector<double> const& px ) const {
   look = normalize( look );
   look = m_camera->instrumentRotation()->J2000Vector(look);
   look = m_camera->bodyRotation()->ReferenceVector(look);
+  
   return look;
 }
 
 vector<double> IsisInterfaceFrame::camera_center() const{
   return m_center;
+}
+
+// IsisInterfaceLineScan class implementation
+IsisInterfaceLineScan::IsisInterfaceLineScan( std::string const& filename ):
+  IsisInterface(filename), m_alphacube( *m_cube ) {
+
+  // Gutting Isis::Camera
+  m_distortmap = m_camera->DistortionMap();
+  m_focalmap   = m_camera->FocalPlaneMap();
+  m_detectmap  = m_camera->DetectorMap();
+}
+
+vector<double>
+IsisInterfaceLineScan::point_to_pixel( vector<double> const& point ) const{
+  
+  // Note: The smallest pixel is (0, 0), not (1, 1)!
+  using namespace Isis;
+  SurfacePoint surfP(Displacement(point[0], Displacement::Meters),
+                     Displacement(point[1], Displacement::Meters),
+                     Displacement(point[2], Displacement::Meters));
+  
+  vector<double> pix(2);
+  if(m_camera->SetUniversalGround(surfP.GetLatitude().degrees(),
+                                  surfP.GetLongitude().degrees(),
+                                  surfP.GetLocalRadius().meters()
+                                  )) {
+    pix[0] = m_camera->Sample()-1;
+    pix[1] = m_camera->Line()-1;
+
+    return pix;
+  }
+  
+  throw string("Could not project point into the camera.");
+  return pix;
+}
+
+vector<double> 
+IsisInterfaceLineScan::pixel_to_vector( vector<double> const& px ) const {
+
+  // Note: The smallest pixel is (0, 0), not (1, 1)!
+
+  m_detectmap->SetParent( m_alphacube.AlphaSample(px[0]+1),
+                          m_alphacube.AlphaLine(px[1]+1));
+  m_focalmap->SetDetector( m_detectmap->DetectorSample(),
+                           m_detectmap->DetectorLine() );
+  m_distortmap->SetFocalPlane( m_focalmap->FocalPlaneX(),
+                               m_focalmap->FocalPlaneY() );
+
+  vector<double> look(3);
+  look[0] = m_distortmap->UndistortedFocalPlaneX();
+  look[1] = m_distortmap->UndistortedFocalPlaneY();
+  look[2] = m_distortmap->UndistortedFocalPlaneZ();
+
+  look = normalize( look );
+  look = m_camera->instrumentRotation()->J2000Vector(look);
+  look = m_camera->bodyRotation()->ReferenceVector(look);
+
+  return look;
+}
+
+vector<double> IsisInterfaceLineScan::camera_center() const{
+  throw string("Computation of camera center is not implemented")
+    + " for linescan cameras.";
 }
 
 // Convolve a DEM with exp(-sigma*x^2). The input DEM must
@@ -478,7 +579,7 @@ void calc_image_and_reflectance_at_pt(ImageView<PixelGray<float> > const& DEM,
                                       ModelParams const & img_params,
                                       GlobalParams const& globalParams,
                                       int col, int row, 
-                                      IsisInterfaceFrame const& cam,
+                                      IsisInterface const* cam,
                                       PixelMask<float> & imgval,
                                       PixelMask<PixelGray<float> > & refl
                                       ){
@@ -501,7 +602,7 @@ void calc_image_and_reflectance_at_pt(ImageView<PixelGray<float> > const& DEM,
   vector<double> xyz2(3);
   for (int k = 0; k < (int)xyz.size(); k++) xyz2[k] = xyz[k];
 
-  vector<double> cpix = cam.point_to_pixel(xyz2);
+  vector<double> cpix = cam->point_to_pixel(xyz2);
   
   if (cpix[0] < 1 || cpix[0] > interp_img.cols() - 2 ||
       cpix[1] < 1 || cpix[1] > interp_img.rows() - 2){
@@ -582,7 +683,7 @@ double calc_cost_fun(ImageView<PixelGray<float> >& DEM,
                      float DEMnodata,
                      ModelParams const& img_params,
                      GlobalParams const& globalParams,
-                     IsisInterfaceFrame const& cam,
+                     IsisInterface const* cam,
                      ImageView<float> & img,
                      double a, double b,
                      ImageView<PixelMask<float> > & I,
@@ -650,7 +751,7 @@ void calc_update(ImageView<PixelGray<float> >& DEM,
                  float DEMnodata,
                  ModelParams const& img_params,
                  GlobalParams const& globalParams,
-                 IsisInterfaceFrame const& cam,
+                 IsisInterface const* cam,
                  ImageView<float> & img,
                  double a, double b, double deltah,
                  ImageView<PixelGray<float> > & update
@@ -742,7 +843,8 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
                                 ){
 
   std::string imgfile = img_params.inputFilename;
-  IsisInterfaceFrame cam(imgfile);
+
+  boost::shared_ptr<IsisInterface> cam(IsisInterface::open(imgfile));
 
   boost::shared_ptr<DiskImageResource>
     img_rsrc( DiskImageResource::open(imgfile));
@@ -754,7 +856,7 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
   ImageView<PixelMask<float> > I;
   ImageView<PixelMask<PixelGray<float> > > R;
   calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                img_params,  globalParams, cam, img, a, b,
+                img_params,  globalParams, cam.get(), img, a, b,
                 I, R
                 );
   double imgmean, imgstdev, refmean, refstdev;
@@ -775,7 +877,7 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
   // Initialize the update
   ImageView<PixelGray<float> > update;
   calc_update(DEM, DEMGeo, DEMnodata,  img_params,  
-              globalParams, cam, img, a, b, deltah, update
+              globalParams, cam.get(), img, a, b, deltah, update
               );
 
   // Determine how to scale the updates, so they are not too big or
@@ -791,7 +893,7 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
   }
     
   double cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                              img_params,  globalParams, cam, img,  a, b,
+                              img_params,  globalParams, cam.get(), img,  a, b,
                               I, R
                               );
 
@@ -815,14 +917,14 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
       
     // Cost after blur
     cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                         img_params,  globalParams, cam, img, a, b,
+                         img_params,  globalParams, cam.get(), img, a, b,
                          I, R
                          );
     Cost.push_back(cost);
     cs << cost << std::endl;
       
     calc_update(DEM, DEMGeo, DEMnodata,  img_params,  
-                globalParams, cam, img, a, b, deltah, update
+                globalParams, cam.get(), img, a, b, deltah, update
                 );
 
     double max_up = 0.0;
@@ -839,7 +941,7 @@ void calc_image_and_reflectance(ImageView<PixelGray<float> >& DEM,
       
     // Cost after update
     cost = calc_cost_fun(DEM, DEMGeo, DEMnodata,  
-                         img_params,  globalParams, cam, img,  a, b,
+                         img_params,  globalParams, cam.get(), img,  a, b,
                          I, R
                          );
     Cost.push_back(cost);

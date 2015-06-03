@@ -22,27 +22,16 @@ Photometry TK uses the CMake build system. These instructions will
 assume you only have access to the terminal program 'cmake'. However,
 setting configuration options is easier with the 'ccmake' tool.
 
-  1. cd PhotometryTK source directory
+  1. cd PhotometryTK 
   2. mkdir build
   3. cd build
 cmake .. -DVISIONWORKBENCH_ROOT:PATH=${YOUR VW INSTALL DIR}   \
          -DBOOST_ROOT:PATH=${YOUR BOOST INSTALL DIR}          \
          -DPROTOBUF_ROOT:PATH=${YOUR PROTOBUF INSTALL DIR}    \
-		 -DENABLE_RPATHS:BOOL=ON
-
-The last option is only necessary to make the executable find
-its libraries after doing 'make install'.
-
-Here is an additional options you can set in the cmake call:
-  *  Set the installation directory for PhotometryTK
-              -DCMAKE_INSTALL_PREFIX:PATH=${YOUR INSTALLATION DIR}
-
-After you have configured your build settings correctly, the following
-instruction detail how to compile Photometry TK. These commands are
-operating GNU Make, and thus the multiprocess options of -j N apply
-here.
-  5. make
-  6. make install
+         -DENABLE_RPATHS:BOOL=ON                              \
+         -DCMAKE_INSTALL_PREFIX:PATH=${YOUR INSTALLATION DIR}
+  4. make -j<num cpus>
+  5. make install
 
 
 Running unit tests
